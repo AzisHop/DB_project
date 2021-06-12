@@ -1,27 +1,43 @@
 package db
 
-import "github.com/jmoiron/sqlx"
+import (
+	"github.com/jackc/pgx"
+	_ "github.com/jmoiron/sqlx"
+)
 
 type Postgres struct {
-	database *sqlx.DB
+	database *pgx.ConnPool
 }
 
-func NewDb(connect string) (*Postgres, error) {
-	database, err := sqlx.Connect("pqx", connect)
+func NewDb() (*Postgres, error) {
+	conf := pgx.ConnConfig{
+		User:                 "postgres",
+		Database:             "postgres",
+		Password:             "admin",
+		PreferSimpleProtocol: false,
+	}
+
+	poolConf := pgx.ConnPoolConfig{
+		ConnConfig:     conf,
+		MaxConnections: 100,
+		AfterConnect:   nil,
+		AcquireTimeout: 0,
+	}
+
+	database, err := pgx.NewConnPool(poolConf)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Postgres{
 		database: database,
 	}, nil
 }
 
-func (postgres *Postgres) GetPs() *sqlx.DB {
+func (postgres *Postgres) GetPs() *pgx.ConnPool {
 	return postgres.database
 }
 
 func (postgres *Postgres) Close() error {
-	err := postgres.database.Close()
-	return err
+	postgres.database.Close()
+	return nil
 }
