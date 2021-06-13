@@ -14,3 +14,7 @@ type User struct {
 	About    string `json:"about,omitempty" db:"about"`
 	Email    string `json:"email,omitempty" db:"email"`
 }
+
+type MessageStatus struct {
+	Message string `json:"message,omitempty" db:"message"`
+}

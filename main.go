@@ -23,6 +23,12 @@ func main() {
 
 	user := router.PathPrefix("/user").Subrouter()
 	user.HandleFunc("/{nickname}/create", handler.CreateUser).Methods(http.MethodPost)
+	user.HandleFunc("/{nickname}/profile", handler.GetUser).Methods(http.MethodGet)
+	user.HandleFunc("/{nickname}/profile", handler.UpdateUser).Methods(http.MethodPost)
+
+	forum := router.PathPrefix("/forum").Subrouter()
+	forum.HandleFunc("/create", handler.CreateForum).Methods(http.MethodPost)
+	forum.HandleFunc("/{slug}/details", handler.GetForum).Methods(http.MethodGet)
 
 	server := &http.Server{
 		Handler: router,
