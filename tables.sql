@@ -20,3 +20,20 @@ CREATE TABLE forum
     threads INT DEFAULT 0,
     FOREIGN KEY ("user") REFERENCES userForum (nickname)
 );
+
+drop table if exists thread;
+CREATE TABLE thread
+(
+    id      BIGSERIAL PRIMARY KEY,
+    title   TEXT                     NOT NULL,
+    author  text                   NOT NULL,
+    forum   text                   NOT NULL,
+    message TEXT                     NOT NULL,
+    votes   BIGINT                   NOT NULL DEFAULT 0,
+    slug    text UNIQUE DEFAULT NULL,
+    created TIMESTAMP WITH TIME ZONE NOT NULL,
+    FOREIGN KEY (author)
+        REFERENCES userForum (nickname),
+    FOREIGN KEY (forum)
+        REFERENCES forum (slug)
+);

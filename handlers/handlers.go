@@ -278,3 +278,89 @@ func (handler *Handlers) GetForum(writer http.ResponseWriter, request *http.Requ
 	}
 	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 }
+
+func (handler *Handlers) CreateThreadForum(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	forum := data["slug"]
+
+	thread := models.Thread{Forum: forum}
+
+	err := json.NewDecoder(request.Body).Decode(&thread)
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//if thread.Slug == "" {
+	//	thread.Slug = pgx.Null
+	//}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
+	err1 := tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author).Scan(&thread.Author)
+	if err1 != nil {
+		_ = tranc.Rollback()
+		mesToClient := models.MessageStatus{
+			Message: "Can't find user by nickname: " + thread.Author,
+		}
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
+	}
+	//if !row.Next() {
+	//	mesToClient := models.MessageStatus{
+	//		Message: "Can't find user by nickname: " + thread.Author,
+	//	}
+	//	_ = tranc.Rollback()
+	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	//	return
+	//}
+
+	err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`, thread.Forum).Scan(&thread.Forum)
+	if err != nil {
+		_ = tranc.Rollback()
+		mesToClient := models.MessageStatus{
+			Message: "Can't find user by slug: " + thread.Author,
+		}
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
+	}
+	//if !row.Next() {
+	//	_ = tranc.Rollback()
+	//	mesToClient := models.MessageStatus{
+	//		Message: "Can't find user by nickname: " + thread.Author,
+	//	}
+	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	//	return
+	//}
+
+	_, err = tranc.Exec(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7)`,
+		thread.Title,
+		thread.Author,
+		thread.Forum,
+		thread.Message,
+		thread.Votes,
+		thread.Slug,
+		thread.Created)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//thread := models.Thread{}
+
+	err = tranc.Commit()
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	httpresponder.Respond(writer, http.StatusCreated, thread)
+}
