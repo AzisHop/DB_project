@@ -30,6 +30,7 @@ func main() {
 	forum.HandleFunc("/create", handler.CreateForum).Methods(http.MethodPost)
 	forum.HandleFunc("/{slug}/details", handler.GetForum).Methods(http.MethodGet)
 	forum.HandleFunc("/{slug}/create", handler.CreateThreadForum).Methods(http.MethodPost)
+	forum.HandleFunc("/{slug}/threads", handler.GetThreads).Methods(http.MethodGet)
 
 	server := &http.Server{
 		Handler: router,

@@ -37,3 +37,33 @@ CREATE TABLE thread
     FOREIGN KEY (forum)
         REFERENCES forum (slug)
 );
+
+drop table if exists post;
+CREATE TABLE post
+(
+    id       BIGSERIAL PRIMARY KEY,
+    parent   BIGINT                   NOT NULL,
+    author   text                     NOT NULL,
+    message  TEXT                     NOT NULL,
+    isEdited BOOLEAN                  NOT NULL DEFAULT false,
+    forum    text                     NOT NULL,
+    thread   BIGINT                   NOT NULL,
+    created  TIMESTAMP WITH TIME ZONE NOT NULL,
+    path     BIGINT[]                 NOT NULL DEFAULT ARRAY []::INTEGER[],
+    FOREIGN KEY (author)
+        REFERENCES userForum (nickname),
+    FOREIGN KEY (forum)
+        REFERENCES forum (slug),
+    FOREIGN KEY (thread)
+        REFERENCES thread (id)
+);
+
+SELECT nickname, fullname, about, email
+FROM userForum uF
+INNER JOIN forum f on uF.nickname = f."user" AND f.slug = 'yar-stories'
+
+
+SELECT id, title, author, forum, message, votes, slug, created
+FROM thread tr
+WHERE forum = 'pirate-stories' AND created = '1918-06-13 18:54:05.031000'
+ORDER BY created DESC LIMIT 100

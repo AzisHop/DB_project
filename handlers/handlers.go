@@ -3,10 +3,12 @@ package handlers
 import (
 	"DB_project/httpresponder"
 	"DB_project/models"
+	"database/sql"
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx"
 	"net/http"
+	"strconv"
 )
 
 type Handlers struct {
@@ -292,7 +294,7 @@ func (handler *Handlers) CreateThreadForum(writer http.ResponseWriter, request *
 	}
 
 	//if thread.Slug == "" {
-	//	thread.Slug = pgx.Null
+	//	thread.Slug = sql.NullString{}
 	//}
 
 	tranc, err := handler.database.Begin()
@@ -338,15 +340,26 @@ func (handler *Handlers) CreateThreadForum(writer http.ResponseWriter, request *
 	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 	//	return
 	//}
+	if thread.Slug == "" {
+		_, err = tranc.Exec(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7)`,
+			thread.Title,
+			thread.Author,
+			thread.Forum,
+			thread.Message,
+			thread.Votes,
+			sql.NullString{},
+			thread.Created)
+	} else {
+		_, err = tranc.Exec(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7)`,
+			thread.Title,
+			thread.Author,
+			thread.Forum,
+			thread.Message,
+			thread.Votes,
+			thread.Slug,
+			thread.Created)
+	}
 
-	_, err = tranc.Exec(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7)`,
-		thread.Title,
-		thread.Author,
-		thread.Forum,
-		thread.Message,
-		thread.Votes,
-		thread.Slug,
-		thread.Created)
 
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
@@ -363,4 +376,146 @@ func (handler *Handlers) CreateThreadForum(writer http.ResponseWriter, request *
 	}
 
 	httpresponder.Respond(writer, http.StatusCreated, thread)
+}
+
+func (handler *Handlers) GetUsersForum(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	slug := data["slug"]
+
+	forum := models.Forum{Slug: slug}
+
+	row, err := handler.database.Query(`SELECT title, "user", slug, posts, threads FROM forum WHERE slug = $1`,
+		forum.Slug)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	defer row.Close()
+	for row.Next() {
+		forum := models.Forum{}
+		err = row.Scan(
+			&forum.Title,
+			&forum.User,
+			&forum.Slug,
+			&forum.Posts,
+			&forum.Threads)
+
+		if err != nil {
+			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			return
+		}
+
+		httpresponder.Respond(writer, http.StatusOK, forum)
+		return
+	}
+
+	mesToClient := models.MessageStatus{
+		Message: "Can't find user by nickname: " + slug,
+	}
+	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+}
+
+
+func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	slug := data["slug"]
+	queryString := request.URL.Query()
+
+	limit := queryString.Get("limit")
+
+	if limit == "" {
+		limit = "100"
+	}
+
+	since := queryString.Get("since")
+
+	desc, err := strconv.ParseBool(queryString.Get("desc"))
+
+	if err != nil {
+		desc = false
+	}
+
+	forum := models.Forum{Slug: slug}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`,
+		forum.Slug).Scan(&forum.Slug)
+
+	if err != nil {
+		_ = tranc.Rollback()
+		mesToClient := models.MessageStatus{
+			Message: "Can't find user by slug: " + forum.Slug,
+		}
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
+	}
+	var row *pgx.Rows
+	if since != "" && desc {
+		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 AND created = $2 ORDER BY created DESC LIMIT $3`,
+			forum.Slug, since, limit)
+	} else if desc {
+		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 ORDER BY created DESC LIMIT $2`,
+			forum.Slug, limit)
+	} else if since != "" {
+		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 AND created = $2 ORDER BY created LIMIT $3`,
+			forum.Slug, since, limit)
+	} else {
+		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 ORDER BY created LIMIT $2`,
+			forum.Slug, limit)
+	}
+
+	//row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''), created FROM thread tr WHERE forum = $1 ORDER BY created`, forum.Slug)
+
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	var threads []models.Thread
+	defer row.Close()
+	for row.Next() {
+		thread := models.Thread{}
+		err = row.Scan(
+			&thread.Id,
+			&thread.Title,
+			&thread.Author,
+			&thread.Forum,
+			&thread.Message,
+			&thread.Votes,
+			&thread.Slug,
+			&thread.Created)
+
+		if err != nil {
+			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			return
+		}
+
+		threads = append(threads, thread)
+	}
+	err = tranc.Commit()
+
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+	httpresponder.Respond(writer, http.StatusOK, threads)
+
+	//mesToClient := models.MessageStatus{
+	//	Message: "Can't find user by nickname: " + slug,
+	//}
+	//httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 }
