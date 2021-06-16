@@ -32,6 +32,9 @@ func main() {
 	forum.HandleFunc("/{slug}/create", handler.CreateThreadForum).Methods(http.MethodPost)
 	forum.HandleFunc("/{slug}/threads", handler.GetThreads).Methods(http.MethodGet)
 
+	thread := router.PathPrefix("/thread").Subrouter()
+	thread.HandleFunc("/{slug_or_id}/create", handler.CreatePostThread).Methods(http.MethodPost)
+
 	server := &http.Server{
 		Handler: router,
 		Addr: ":5000",

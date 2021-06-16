@@ -5,6 +5,7 @@ import (
 	"DB_project/models"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx"
 	"net/http"
@@ -518,4 +519,102 @@ func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Re
 	//	Message: "Can't find user by nickname: " + slug,
 	//}
 	//httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+}
+
+func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	slugOrId := data["slug_or_id"]
+
+	idThread, err := strconv.Atoi(slugOrId)
+
+	if err != nil {
+		idThread = 0
+	}
+
+	var posts []models.Post
+	fmt.Println(idThread)
+
+
+
+	err = json.NewDecoder(request.Body).Decode(&posts)
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//err1 := tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author).Scan(&thread.Author)
+	//if err1 != nil {
+	//	_ = tranc.Rollback()
+	//	mesToClient := models.MessageStatus{
+	//		Message: "Can't find user by nickname: " + thread.Author,
+	//	}
+	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	//	return
+	//}
+	//
+	var thread models.Thread
+	if idThread != 0 {
+		//thread.Id = idThread
+		err = tranc.QueryRow(`SELECT id, forum FROM thread WHERE id = $1`, idThread).Scan(&thread.Id, &thread.Forum)
+		if err != nil {
+			_ = tranc.Rollback()
+			mesToClient := models.MessageStatus{
+				Message: "Can't find thread by id: " + slugOrId,
+			}
+			httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+			return
+		}
+	} else {
+		thread.Slug = slugOrId
+		err = tranc.QueryRow(`SELECT slug, forum, id FROM forum WHERE slug = $1`, thread.Slug).Scan(&thread.Slug, &thread.Id, &thread.Forum)
+		if err != nil {
+			_ = tranc.Rollback()
+			mesToClient := models.MessageStatus{
+				Message: "Can't find thread by slug: " + slugOrId,
+			}
+			httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+			return
+		}
+	}
+
+	valuesString := ""
+
+	if posts[0].Parent != 0 {
+		posts[0].Forum = thread.Forum
+		posts[0].Thread = thread.Id
+		currentThread := -1
+		err := tranc.QueryRow(`SELECT thread FROM forum.post WHERE id = $1`, posts[0].Parent).Scan(&currentThread)
+
+		if err != nil {
+			panic(err)
+			return
+		}
+
+		if currentThread != posts[0].Parent {
+			_ = tranc.Rollback()
+			mesToClient := models.MessageStatus{
+				Message: "Can't find thread by slug: " + slugOrId,
+			}
+			httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+			return
+		}
+		valuesString = fmt.Sprintf("(%d, '%s', '%s', %s, '%d'),", posts[0].Parent, posts[0].Author, posts[0].Message, posts[0].Forum, posts[0].Thread)
+	}
+
+	for i, _ := range posts {
+		posts[i].Forum = thread.Forum
+		posts[i].Thread = thread.Id
+
+
+	}
+
+
+
 }

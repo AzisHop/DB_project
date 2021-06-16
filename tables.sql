@@ -67,3 +67,5 @@ SELECT id, title, author, forum, message, votes, slug, created
 FROM thread tr
 WHERE forum = 'pirate-stories' AND created = '1918-06-13 18:54:05.031000'
 ORDER BY created DESC LIMIT 100
+
+SELECT slug FROM thread WHERE id = 3
