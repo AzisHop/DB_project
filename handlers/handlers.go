@@ -362,7 +362,6 @@ func (handler *Handlers) CreateThreadForum(writer http.ResponseWriter, request *
 			thread.Created)
 	}
 
-
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
@@ -418,7 +417,6 @@ func (handler *Handlers) GetUsersForum(writer http.ResponseWriter, request *http
 	}
 	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 }
-
 
 func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Request) {
 	data := mux.Vars(request)
@@ -534,8 +532,6 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 
 	var posts []models.Post
 	fmt.Println(idThread)
-
-
 
 	err = json.NewDecoder(request.Body).Decode(&posts)
 	if err != nil {
@@ -695,4 +691,143 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 	}
 
 	httpresponder.Respond(writer, http.StatusCreated, postsToClient)
+}
+
+func (handler *Handlers) GetThread(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	slugOrId := data["slug_or_id"]
+
+	idThread, err := strconv.Atoi(slugOrId)
+
+	if err != nil {
+		idThread = 0
+	}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+	var row *pgx.Rows
+	if idThread != 0 {
+		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`,
+			idThread)
+	} else {
+		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1`,
+			slugOrId)
+	}
+
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	defer row.Close()
+	for row.Next() {
+		thread := models.Thread{}
+		err = row.Scan(
+			&thread.Id,
+			&thread.Title,
+			&thread.Author,
+			&thread.Forum,
+			&thread.Message,
+			&thread.Votes,
+			&thread.Slug,
+			&thread.Created)
+
+		if err != nil {
+			_ = tranc.Rollback()
+			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			return
+		}
+
+		httpresponder.Respond(writer, http.StatusOK, thread)
+		return
+	}
+
+	mesToClient := models.MessageStatus{
+		Message: "Can't find user by nickname: " + slugOrId,
+	}
+	_ = tranc.Rollback()
+	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+}
+
+func (handler *Handlers) UpdateThread(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	slugOrId := data["slug_or_id"]
+	var thread models.Thread
+
+	idThread, err := strconv.Atoi(slugOrId)
+
+	if err != nil {
+		idThread = 0
+	}
+
+	err = json.NewDecoder(request.Body).Decode(&thread)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
+	//var row *pgx.Rows
+
+	if idThread != 0 {
+		_, err = tranc.Exec(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`,
+			idThread)
+	} else {
+		_, err = tranc.Exec(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1`,
+			slugOrId)
+	}
+
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusNotFound, nil)
+		return
+	}
+
+	//err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`, thread.Forum).Scan(&thread.Forum)
+	//if err != nil {
+	//	_ = tranc.Rollback()
+	//	mesToClient := models.MessageStatus{
+	//		Message: "Can't find user by slug: " + thread.Author,
+	//	}
+	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	//	return
+	//}
+	if idThread != 0 {
+		_, err = tranc.Exec(`UPDATE thread SET title = $1, message = $2 WHERE id = $3`,
+			thread.Title,
+			thread.Message,
+			idThread)
+	} else {
+		_, err = tranc.Exec(`UPDATE thread SET title = $1, message = $2 WHERE slug = $3`,
+			thread.Title,
+			thread.Message,
+			slugOrId)
+	}
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	err = tranc.Commit()
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	httpresponder.Respond(writer, http.StatusCreated, thread)
 }
