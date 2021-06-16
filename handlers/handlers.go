@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Handlers struct {
@@ -549,16 +550,6 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 		return
 	}
 
-	//err1 := tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author).Scan(&thread.Author)
-	//if err1 != nil {
-	//	_ = tranc.Rollback()
-	//	mesToClient := models.MessageStatus{
-	//		Message: "Can't find user by nickname: " + thread.Author,
-	//	}
-	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
-	//	return
-	//}
-	//
 	var thread models.Thread
 	if idThread != 0 {
 		//thread.Id = idThread
@@ -583,16 +574,17 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 			return
 		}
 	}
-
+	posts[0].Forum = thread.Forum
+	posts[0].Thread = thread.Id
 	valuesString := ""
-
+	author := ""
 	if posts[0].Parent != 0 {
-		posts[0].Forum = thread.Forum
-		posts[0].Thread = thread.Id
 		currentThread := -1
-		err := tranc.QueryRow(`SELECT thread FROM forum.post WHERE id = $1`, posts[0].Parent).Scan(&currentThread)
+
+		err := tranc.QueryRow(`SELECT thread FROM post WHERE id = $1`, posts[0].Parent).Scan(&currentThread)
 
 		if err != nil {
+			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 			panic(err)
 			return
 		}
@@ -605,16 +597,102 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 			httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 			return
 		}
-		valuesString = fmt.Sprintf("(%d, '%s', '%s', %s, '%d'),", posts[0].Parent, posts[0].Author, posts[0].Message, posts[0].Forum, posts[0].Thread)
+
+	}
+	err = tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, posts[0].Author).Scan(&author)
+
+	if err != nil {
+		_ = tranc.Rollback()
+		panic(err)
+		return
 	}
 
-	for i, _ := range posts {
+	if author == "" {
+		_ = tranc.Rollback()
+		mesToClient := models.MessageStatus{
+			Message: "Can't find user by forum: " + posts[0].Author,
+		}
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
+	}
+	created := time.Now()
+
+	valuesString = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)",
+		1, 2, 3, 4, 5, 6)
+	var args []interface{}
+	args = append(args, posts[0].Parent, posts[0].Author, posts[0].Message, posts[0].Forum, posts[0].Thread, created)
+	valuesString += ","
+
+	for i := 1; i < len(posts); i++ {
 		posts[i].Forum = thread.Forum
 		posts[i].Thread = thread.Id
+		author = ""
 
+		err = tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, posts[i].Author).Scan(&author)
+
+		if err != nil {
+			_ = tranc.Rollback()
+			panic(err)
+			return
+		}
+
+		if author == "" {
+			_ = tranc.Rollback()
+			mesToClient := models.MessageStatus{
+				Message: "Can't find user by forum: " + posts[0].Author,
+			}
+			httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+			return
+		}
+
+		valuesString += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)",
+			i*6+1, i*6+2, i*6+3, i*6+4, i*6+5, i*6+6)
+		args = append(args, posts[i].Parent, posts[i].Author, posts[i].Message, posts[i].Forum, posts[i].Thread, created)
+		valuesString += ","
 
 	}
+	valuesString = valuesString[:len(valuesString)-1]
 
+	query := "INSERT INTO post(parent, author, message, forum, thread, created) VALUES " + valuesString + " RETURNING id, parent, author, message, isEdited, forum, thread, created"
+	row, err := tranc.Query(query, args...)
 
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
+		return
+	}
+	var postsToClient []models.Post
+	for row.Next() {
+		post := models.Post{}
+		err = row.Scan(
+			&post.Id,
+			&post.Parent,
+			&post.Author,
+			&post.Message,
+			&post.IsEdited,
+			&post.Forum,
+			&post.Thread,
+			&post.Created)
 
+		if err != nil {
+			_ = tranc.Rollback()
+			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
+			return
+		}
+
+		postsToClient = append(postsToClient, post)
+	}
+
+	err = tranc.Commit()
+
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
+		return
+	}
+
+	httpresponder.Respond(writer, http.StatusCreated, postsToClient)
 }
