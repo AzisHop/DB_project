@@ -57,10 +57,32 @@ CREATE TABLE post
     FOREIGN KEY (thread)
         REFERENCES thread (id)
 );
+drop table if exists allUsersForum;
+CREATE UNLOGGED TABLE allUsersForum
+(
+    forum    text                 NOT NULL,
+    nickname text               collate "POSIX"     NOT NULL,
+    fullname TEXT                   NOT NULL,
+    about    TEXT,
+    email    text                 NOT NULL,
+    FOREIGN KEY (forum)
+        REFERENCES forum (slug),
+    FOREIGN KEY (nickname)
+        REFERENCES userForum (nickname),
+    PRIMARY KEY (nickname, forum)
+);
 
 SELECT nickname, fullname, about, email
+FROM allUsersForum
+WHERE forum = 'pirate-stories'
+
+SELECT DISTINCT nickname, fullname, about, email
 FROM userForum uF
-INNER JOIN forum f on uF.nickname = f."user" AND f.slug = 'yar-stories'
+INNER JOIN  thread t on uF.nickname = t.author AND t.forum = 'pirate-stories'
+INNER JOIN post p on uF.nickname = p.author AND p.forum = 'pirate-stories'
+-- INNER JOIN forum f on uF.nickname = f."user" AND f.slug = 'pirate-stories'
+
+
 
 
 SELECT id, title, author, forum, message, votes, slug, created

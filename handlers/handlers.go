@@ -783,16 +783,19 @@ func (handler *Handlers) UpdateThread(writer http.ResponseWriter, request *http.
 	//var row *pgx.Rows
 
 	if idThread != 0 {
-		_, err = tranc.Exec(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`,
-			idThread)
+		err = tranc.QueryRow(`SELECT id FROM thread WHERE id = $1`,
+			idThread).Scan(thread.Id)
 	} else {
-		_, err = tranc.Exec(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1`,
-			slugOrId)
+		err = tranc.QueryRow(`SELECT slug FROM thread WHERE slug = $1`,
+			slugOrId).Scan(thread.Slug)
 	}
 
 	if err != nil {
+		mesToClient := models.MessageStatus{
+			Message: "Can't find user by nickname: " + slugOrId,
+		}
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusNotFound, nil)
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 		return
 	}
 
@@ -830,4 +833,189 @@ func (handler *Handlers) UpdateThread(writer http.ResponseWriter, request *http.
 	}
 
 	httpresponder.Respond(writer, http.StatusCreated, thread)
+}
+
+func (handler *Handlers) GetThreadPosts(writer http.ResponseWriter, request *http.Request) {
+	//data := mux.Vars(request)
+	//slugOrId := data["slug_or_id"]
+	//
+	//idThread, err := strconv.Atoi(slugOrId)
+	//
+	//if err != nil {
+	//	idThread = 0
+	//}
+	//
+	//tranc, err := handler.database.Begin()
+	//
+	//if err != nil {
+	//	httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+	//	return
+	//}
+	//var row *pgx.Rows
+	//if idThread != 0 {
+	//	row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`,
+	//		idThread)
+	//} else {
+	//	row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1`,
+	//		slugOrId)
+	//}
+	//
+	//if err != nil {
+	//	_ = tranc.Rollback()
+	//	httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+	//	return
+	//}
+	//
+	//defer row.Close()
+	//for row.Next() {
+	//	thread := models.Thread{}
+	//	err = row.Scan(
+	//		&thread.Id,
+	//		&thread.Title,
+	//		&thread.Author,
+	//		&thread.Forum,
+	//		&thread.Message,
+	//		&thread.Votes,
+	//		&thread.Slug,
+	//		&thread.Created)
+	//
+	//	if err != nil {
+	//		_ = tranc.Rollback()
+	//		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+	//		return
+	//	}
+	//
+	//	httpresponder.Respond(writer, http.StatusOK, thread)
+	//	return
+	//}
+	//
+	//mesToClient := models.MessageStatus{
+	//	Message: "Can't find user by nickname: " + slugOrId,
+	//}
+	//_ = tranc.Rollback()
+	//httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+}
+
+func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	id := data["id"]
+
+	idPost, err := strconv.Atoi(id)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
+		return
+	}
+	post := models.Post{Id: idPost}
+
+	err = json.NewDecoder(request.Body).Decode(&post)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
+	//var row *pgx.Rows
+
+	err = tranc.QueryRow(`SELECT id FROM post WHERE id = $1`,
+		&post.Id).Scan(&post.Id)
+
+	if err != nil {
+		mesToClient := models.MessageStatus{
+			Message: "Can't find post by id: " + id,
+		}
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
+	}
+
+	_, err = tranc.Exec(`UPDATE post SET message = $1, isEdited = true WHERE id = $2`,
+		post.Message,
+		post.Id)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	err = tranc.Commit()
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	httpresponder.Respond(writer, http.StatusOK, post)
+
+}
+
+func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	id := data["id"]
+
+	idPost, err := strconv.Atoi(id)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
+		return
+	}
+	post := models.Post{Id: idPost}
+
+	err = json.NewDecoder(request.Body).Decode(&post)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
+	//var row *pgx.Rows
+
+	err = tranc.QueryRow(`SELECT id FROM post WHERE id = $1`,
+		&post.Id).Scan(&post.Id)
+
+	if err != nil {
+		mesToClient := models.MessageStatus{
+			Message: "Can't find post by id: " + id,
+		}
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
+	}
+
+	_, err = tranc.Exec(`UPDATE post SET message = $1, isEdited = true WHERE id = $2`,
+		post.Message,
+		post.Id)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	err = tranc.Commit()
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	httpresponder.Respond(writer, http.StatusOK, post)
+
 }

@@ -36,6 +36,11 @@ func main() {
 	thread.HandleFunc("/{slug_or_id}/create", handler.CreatePostThread).Methods(http.MethodPost)
 	thread.HandleFunc("/{slug_or_id}/details", handler.GetThread).Methods(http.MethodGet)
 	thread.HandleFunc("/{slug_or_id}/details", handler.UpdateThread).Methods(http.MethodPost)
+	thread.HandleFunc("/{slug_or_id}/posts", handler.UpdateThread).Methods(http.MethodPost)
+
+	post := router.PathPrefix("/post").Subrouter()
+	post.HandleFunc("/{id}/details", handler.UpdatePost).Methods(http.MethodPost)
+	post.HandleFunc("/{id}/details", handler.UpdatePost).Methods(http.MethodGet)
 
 	server := &http.Server{
 		Handler: router,
