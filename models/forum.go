@@ -55,3 +55,10 @@ type Voice struct {
 	Voice  int    `json:"voice,omitempty" db:"voice"`
 	Nickname  string `json:"nickname" db:"nickname,omitempty"`
 }
+
+type Service struct {
+	User  int `json:"user" db:"user,omitempty"`
+	Forum  int    `json:"forum,omitempty" db:"forum"`
+	Thread  int    `json:"thread,omitempty" db:"thread"`
+	Post int `json:"post" db:"post,omitempty"`
+}

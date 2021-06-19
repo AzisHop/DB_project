@@ -43,6 +43,10 @@ func main() {
 	post.HandleFunc("/{id}/details", handler.UpdatePost).Methods(http.MethodPost)
 	post.HandleFunc("/{id}/details", handler.GetPost).Methods(http.MethodGet)
 
+	service := router.PathPrefix("/service").Subrouter()
+	service.HandleFunc("/status", handler.ServiceStatus).Methods(http.MethodGet)
+	service.HandleFunc("/clear", handler.ServiceClear).Methods(http.MethodPost)
+
 	server := &http.Server{
 		Handler: router,
 		Addr: ":5000",
