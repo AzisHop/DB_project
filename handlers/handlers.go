@@ -385,37 +385,54 @@ func (handler *Handlers) GetUsersForum(writer http.ResponseWriter, request *http
 
 	forum := models.Forum{Slug: slug}
 
-	row, err := handler.database.Query(`SELECT title, "user", slug, posts, threads FROM forum WHERE slug = $1`,
-		forum.Slug)
+	tranc, err := handler.database.Begin()
 
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
 
+	err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`,
+		forum.Slug).Scan(&forum.Slug)
+
+	if err != nil {
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusNotFound, nil)
+		return
+	}
+
+	row, err := tranc.Query(`SELECT * FROM allUsersForum`)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+	var users []models.User
 	defer row.Close()
 	for row.Next() {
-		forum := models.Forum{}
+
+		user := models.User{}
 		err = row.Scan(
-			&forum.Title,
-			&forum.User,
-			&forum.Slug,
-			&forum.Posts,
-			&forum.Threads)
+			&user.Nickname,
+			&user.Fullname,
+			&user.About,
+			&user.Email,
+			&forum.Slug)
 
 		if err != nil {
 			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 			return
 		}
 
-		httpresponder.Respond(writer, http.StatusOK, forum)
-		return
+		users = append(users, user)
 	}
 
-	mesToClient := models.MessageStatus{
-		Message: "Can't find user by nickname: " + slug,
-	}
-	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	//mesToClient := models.MessageStatus{
+	//	Message: "Can't find user by nickname: " + slug,
+	//}
+	//httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	httpresponder.Respond(writer, http.StatusOK, users)
+	return
 }
 
 func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Request) {
@@ -986,8 +1003,6 @@ func (handler *Handlers) GetPost(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
-
-
 	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
 	//var row *pgx.Rows
 
@@ -995,15 +1010,15 @@ func (handler *Handlers) GetPost(writer http.ResponseWriter, request *http.Reque
 
 	err = tranc.QueryRow(`SELECT id, parent, author, message, isedited, forum, thread, created FROM post WHERE id = $1`,
 		&post.Id).Scan(
-			&post.Id,
-			&post.Parent,
-			&post.Author,
-			&post.Message,
-			&post.IsEdited,
-			&post.Forum,
-			&post.Thread,
-			&post.Created,
-			)
+		&post.Id,
+		&post.Parent,
+		&post.Author,
+		&post.Message,
+		&post.IsEdited,
+		&post.Forum,
+		&post.Thread,
+		&post.Created,
+	)
 
 	if err != nil {
 		mesToClient := models.MessageStatus{
@@ -1015,7 +1030,6 @@ func (handler *Handlers) GetPost(writer http.ResponseWriter, request *http.Reque
 	}
 
 	info.Post = &post
-
 
 	for _, item := range related {
 		if item == "user" {
@@ -1087,7 +1101,6 @@ func (handler *Handlers) GetPost(writer http.ResponseWriter, request *http.Reque
 		}
 	}
 
-
 	err = tranc.Commit()
 	if err != nil {
 		_ = tranc.Rollback()
@@ -1144,26 +1157,26 @@ func (handler *Handlers) VoiceThread(writer http.ResponseWriter, request *http.R
 		err = tranc.QueryRow(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
 		created FROM thread WHERE id = $1`,
 			idThread).Scan(
-				&thread.Id,
-				&thread.Title,
-				&thread.Author,
-				&thread.Forum,
-				&thread.Message,
-				&thread.Votes,
-				&thread.Slug,
-				&thread.Created)
+			&thread.Id,
+			&thread.Title,
+			&thread.Author,
+			&thread.Forum,
+			&thread.Message,
+			&thread.Votes,
+			&thread.Slug,
+			&thread.Created)
 	} else {
 		err = tranc.QueryRow(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
 		created FROM thread WHERE slug = $1`,
 			slugOrId).Scan(
-				&thread.Id,
-				&thread.Title,
-				&thread.Author,
-				&thread.Forum,
-				&thread.Message,
-				&thread.Votes,
-				&thread.Slug,
-				&thread.Created)
+			&thread.Id,
+			&thread.Title,
+			&thread.Author,
+			&thread.Forum,
+			&thread.Message,
+			&thread.Votes,
+			&thread.Slug,
+			&thread.Created)
 	}
 
 	if err != nil {

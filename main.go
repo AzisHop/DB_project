@@ -31,6 +31,7 @@ func main() {
 	forum.HandleFunc("/{slug}/details", handler.GetForum).Methods(http.MethodGet)
 	forum.HandleFunc("/{slug}/create", handler.CreateThreadForum).Methods(http.MethodPost)
 	forum.HandleFunc("/{slug}/threads", handler.GetThreads).Methods(http.MethodGet)
+	forum.HandleFunc("/{slug}/users", handler.GetUsersForum).Methods(http.MethodGet)
 
 	thread := router.PathPrefix("/thread").Subrouter()
 	thread.HandleFunc("/{slug_or_id}/create", handler.CreatePostThread).Methods(http.MethodPost)
