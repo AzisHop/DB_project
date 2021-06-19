@@ -958,7 +958,7 @@ func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Re
 
 }
 
-func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Request) {
+func (handler *Handlers) GetPost(writer http.ResponseWriter, request *http.Request) {
 	data := mux.Vars(request)
 	id := data["id"]
 
@@ -971,7 +971,8 @@ func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Re
 	}
 	post := models.Post{Id: idPost}
 
-	err = json.NewDecoder(request.Body).Decode(&post)
+	query := request.URL.Query()
+	related, _ := query["related"]
 
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
@@ -985,11 +986,24 @@ func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
+
+
 	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
 	//var row *pgx.Rows
 
-	err = tranc.QueryRow(`SELECT id FROM post WHERE id = $1`,
-		&post.Id).Scan(&post.Id)
+	var info models.AllInfo
+
+	err = tranc.QueryRow(`SELECT id, parent, author, message, isedited, forum, thread, created FROM post WHERE id = $1`,
+		&post.Id).Scan(
+			&post.Id,
+			&post.Parent,
+			&post.Author,
+			&post.Message,
+			&post.IsEdited,
+			&post.Forum,
+			&post.Thread,
+			&post.Created,
+			)
 
 	if err != nil {
 		mesToClient := models.MessageStatus{
@@ -1000,14 +1014,79 @@ func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	_, err = tranc.Exec(`UPDATE post SET message = $1, isEdited = true WHERE id = $2`,
-		post.Message,
-		post.Id)
+	info.Post = &post
 
-	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
-		return
+
+	for _, item := range related {
+		if item == "user" {
+			var user models.User
+			err = tranc.QueryRow(`SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1`,
+				&post.Author).Scan(
+				&user.Nickname,
+				&user.Fullname,
+				&user.About,
+				&user.Email)
+
+			if err != nil {
+				mesToClient := models.MessageStatus{
+					Message: "Can't find user by post id: " + id,
+				}
+				_ = tranc.Rollback()
+				httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+				return
+			}
+
+			info.User = &user
+			continue
+		}
+		if item == "forum" {
+			var forum models.Forum
+			err = tranc.QueryRow(`SELECT title, user, coalesce(slug, ''), posts, threads FROM forum WHERE slug = $1`,
+				&post.Forum).Scan(
+				&forum.Title,
+				&forum.User,
+				&forum.Slug,
+				&forum.Posts,
+				&forum.Threads)
+
+			if err != nil {
+				mesToClient := models.MessageStatus{
+					Message: "Can't find forum by post id" + id,
+				}
+				_ = tranc.Rollback()
+				httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+				return
+			}
+
+			info.Forum = &forum
+			continue
+		}
+		if item == "thread" {
+			var thread models.Thread
+			err = tranc.QueryRow(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`,
+				&post.Thread).Scan(
+				&thread.Id,
+				&thread.Title,
+				&thread.Author,
+				&thread.Forum,
+				&thread.Message,
+				&thread.Votes,
+				&thread.Slug,
+				&thread.Created)
+
+			if err != nil {
+				mesToClient := models.MessageStatus{
+					Message: "Can't find thread by post id: " + id,
+				}
+				_ = tranc.Rollback()
+				httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+				return
+			}
+
+			info.Thread = &thread
+		}
 	}
+
 
 	err = tranc.Commit()
 	if err != nil {
@@ -1016,6 +1095,106 @@ func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	httpresponder.Respond(writer, http.StatusOK, post)
+	httpresponder.Respond(writer, http.StatusOK, info)
+
+}
+
+func (handler *Handlers) VoiceThread(writer http.ResponseWriter, request *http.Request) {
+	data := mux.Vars(request)
+	slugOrId := data["slug_or_id"]
+	var voice models.Voice
+
+	idThread, err := strconv.Atoi(slugOrId)
+
+	if err != nil {
+		idThread = 0
+	}
+
+	err = json.NewDecoder(request.Body).Decode(&voice)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+	userNickname := ""
+	err = tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, voice.Nickname).Scan(&userNickname)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	if userNickname == "" {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
+	//var row *pgx.Rows
+	var thread models.Thread
+
+	if idThread != 0 {
+		err = tranc.QueryRow(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread WHERE id = $1`,
+			idThread).Scan(
+				&thread.Id,
+				&thread.Title,
+				&thread.Author,
+				&thread.Forum,
+				&thread.Message,
+				&thread.Votes,
+				&thread.Slug,
+				&thread.Created)
+	} else {
+		err = tranc.QueryRow(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread WHERE slug = $1`,
+			slugOrId).Scan(
+				&thread.Id,
+				&thread.Title,
+				&thread.Author,
+				&thread.Forum,
+				&thread.Message,
+				&thread.Votes,
+				&thread.Slug,
+				&thread.Created)
+	}
+
+	if err != nil {
+		mesToClient := models.MessageStatus{
+			Message: "Can't find user by nickname: " + slugOrId,
+		}
+		_ = tranc.Rollback()
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
+	}
+
+	voice.Thread = thread.Id
+
+	_, err = tranc.Exec(`INSERT INTO votes (thread, voice, nickname) VALUES ($1, $2, $3)`,
+		voice.Thread, voice.Voice, voice.Nickname)
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	err = tranc.Commit()
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	httpresponder.Respond(writer, http.StatusOK, thread)
+
+
+
 
 }

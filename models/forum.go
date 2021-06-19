@@ -42,3 +42,16 @@ type Post struct {
 	Thread   int       `json:"thread" db:"thread"`
 	Created  time.Time `json:"created" db:"created"`
 }
+
+type AllInfo struct {
+	Post    *Post   `json:"post" db:"post"`
+	Thread  *Thread    `json:"thread,omitempty" db:"thread"`
+	User  *User `json:"user" db:"user,omitempty"`
+	Forum *Forum `json:"forum,omitempty" db:"forum"`
+}
+
+type Voice struct {
+	Thread  int    `json:"thread,omitempty" db:"thread"`
+	Voice  int    `json:"voice,omitempty" db:"voice"`
+	Nickname  string `json:"nickname" db:"nickname,omitempty"`
+}

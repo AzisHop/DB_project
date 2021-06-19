@@ -49,7 +49,6 @@ CREATE TABLE post
     forum    text                     NOT NULL,
     thread   BIGINT                   NOT NULL,
     created  TIMESTAMP WITH TIME ZONE NOT NULL,
-    path     BIGINT[]                 NOT NULL DEFAULT ARRAY []::INTEGER[],
     FOREIGN KEY (author)
         REFERENCES userForum (nickname),
     FOREIGN KEY (forum)
@@ -70,6 +69,15 @@ CREATE UNLOGGED TABLE allUsersForum
     FOREIGN KEY (nickname)
         REFERENCES userForum (nickname),
     PRIMARY KEY (nickname, forum)
+);
+drop table if exists votes;
+CREATE TABLE votes (
+    thread INT NOT NULL,
+    voice INT NOT NULL,
+    nickname TEXT NOT NULL,
+    FOREIGN KEY (thread) REFERENCES thread (id),
+    FOREIGN KEY (nickname) REFERENCES userForum(nickname),
+    UNIQUE (thread, nickname)
 );
 
 SELECT nickname, fullname, about, email
