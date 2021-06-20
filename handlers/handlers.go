@@ -61,11 +61,6 @@ func (handler *Handlers) CreateUser(writer http.ResponseWriter, request *http.Re
 			var users []models.User
 			for row.Next() {
 				user := models.User{}
-				//err = row.Scan(
-				//	&user.Nickname,
-				//	&user.Fullname,
-				//	&user.About,
-				//	&user.Email)
 				err = row.Scan(
 					&user.Nickname,
 					&user.Fullname,
@@ -83,11 +78,6 @@ func (handler *Handlers) CreateUser(writer http.ResponseWriter, request *http.Re
 			return
 		}
 	}
-
-	//if err1 != nil {
-	//	httpresponder.Respond(writer, http.StatusInternalServerError, nil)
-	//	return
-	//}
 
 	httpresponder.Respond(writer, http.StatusCreated, user)
 }
@@ -171,6 +161,8 @@ func (handler *Handlers) UpdateUser(writer http.ResponseWriter, request *http.Re
 		email = (CASE WHEN $4 != '' THEN $4 END)
 		WHERE nickname = $1`,
 		user.Nickname, user.Fullname, user.About, user.Email)
+
+	// ToDo statusConflict
 
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)

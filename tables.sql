@@ -1,21 +1,27 @@
+create extension if not exists citext;
+drop table if exists votes;
+drop table if exists post;
+drop table if exists thread;
+drop table if exists allUsersForum;
+drop table if exists forum;
 drop table if exists userForum;
 
 
 CREATE TABLE userForum
 (
     id       BIGSERIAL PRIMARY KEY,
-    nickname TEXT UNIQUE NOT NULL,
+    nickname citext UNIQUE NOT NULL,
     fullname TEXT        NOT NULL,
     about    TEXT        NOT NULL,
-    email    TEXT UNIQUE NOT NULL
+    email    citext UNIQUE NOT NULL
 );
 drop table if exists forum;
 CREATE TABLE forum
 (
     id      BIGSERIAL PRIMARY KEY,
     title   TEXT   NOT NULL,
-    "user"  text NOT NULL,
-    slug    text UNIQUE NOT NULL,
+    "user"  citext NOT NULL,
+    slug    citext UNIQUE NOT NULL,
     posts   INT DEFAULT 0,
     threads INT DEFAULT 0,
     FOREIGN KEY ("user") REFERENCES userForum (nickname)
@@ -26,11 +32,11 @@ CREATE TABLE thread
 (
     id      BIGSERIAL PRIMARY KEY,
     title   TEXT                     NOT NULL,
-    author  text                   NOT NULL,
-    forum   text                   NOT NULL,
+    author  citext                   NOT NULL,
+    forum   citext                   NOT NULL,
     message TEXT                     NOT NULL,
     votes   BIGINT                   NOT NULL DEFAULT 0,
-    slug    text UNIQUE DEFAULT NULL,
+    slug    citext UNIQUE DEFAULT NULL,
     created TIMESTAMP WITH TIME ZONE NOT NULL,
     FOREIGN KEY (author)
         REFERENCES userForum (nickname),
@@ -43,10 +49,10 @@ CREATE TABLE post
 (
     id       BIGSERIAL PRIMARY KEY,
     parent   BIGINT                   NOT NULL,
-    author   text                     NOT NULL,
+    author   citext                     NOT NULL,
     message  TEXT                     NOT NULL,
     isEdited BOOLEAN                  NOT NULL DEFAULT false,
-    forum    text                     NOT NULL,
+    forum    citext                     NOT NULL,
     thread   BIGINT                   NOT NULL,
     created  TIMESTAMP WITH TIME ZONE NOT NULL,
     path BIGINT[] DEFAULT '{}',
@@ -60,11 +66,11 @@ CREATE TABLE post
 drop table if exists allUsersForum;
 CREATE UNLOGGED TABLE allUsersForum
 (
-    forum    text                 NOT NULL,
-    nickname text               collate "POSIX"     NOT NULL,
+    forum    citext                 NOT NULL,
+    nickname citext               collate "POSIX"     NOT NULL,
     fullname TEXT                   NOT NULL,
     about    TEXT,
-    email    text                 NOT NULL,
+    email    citext                 NOT NULL,
     FOREIGN KEY (forum)
         REFERENCES forum (slug),
     FOREIGN KEY (nickname)
@@ -75,7 +81,7 @@ drop table if exists votes;
 CREATE TABLE votes (
     thread INT NOT NULL,
     voice INT NOT NULL,
-    nickname TEXT NOT NULL,
+    nickname citext NOT NULL,
     FOREIGN KEY (thread) REFERENCES thread (id),
     FOREIGN KEY (nickname) REFERENCES userForum(nickname),
     UNIQUE (thread, nickname)
