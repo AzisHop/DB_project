@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -104,7 +105,7 @@ func (handler *Handlers) GetUser(writer http.ResponseWriter, request *http.Reque
 			&userInfo.Fullname,
 			&userInfo.About,
 			&userInfo.Email)
-		if userInfo.Nickname == user.Nickname {
+		if strings.EqualFold(userInfo.Nickname, user.Nickname) {
 			httpresponder.Respond(writer, http.StatusOK, userInfo)
 			return
 		}
@@ -132,16 +133,14 @@ func (handler *Handlers) UpdateUser(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	if user.Email != "" {
-		row, _ := handler.database.Query(`SELECT email FROM userForum WHERE email = $1`, user.Email)
-		defer row.Close()
-		for row.Next() {
-			mesToClient := models.MessageStatus{
-				Message: "Can't find user by nickname: " + nickname,
-			}
-			httpresponder.Respond(writer, http.StatusConflict, mesToClient)
-			return
+	row, _ := handler.database.Query(`SELECT email FROM userForum WHERE nickname = $1`, user.Nickname)
+	defer row.Close()
+	if !row.Next() {
+		mesToClient := models.MessageStatus{
+			Message: "Can't find user by nickname: " + nickname,
 		}
+		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+		return
 	}
 
 	_, err = handler.database.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, user.Nickname)
@@ -154,15 +153,39 @@ func (handler *Handlers) UpdateUser(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	_, err = handler.database.Query(`UPDATE userForum
+	_, err = handler.database.Exec(`UPDATE userForum
 		SET
-		fullname = (CASE WHEN $2 != '' THEN $2 END),
-		about = (CASE WHEN $3 != '' THEN $3 END),
-		email = (CASE WHEN $4 != '' THEN $4 END)
+		fullname = (CASE WHEN $2 != '' THEN $2 ELSE fullname END),
+		about = (CASE WHEN $3 != '' THEN $3 ELSE about END),
+		email = (CASE WHEN $4 != '' THEN $4 ELSE email END)
 		WHERE nickname = $1`,
 		user.Nickname, user.Fullname, user.About, user.Email)
 
 	// ToDo statusConflict
+
+	if err != nil {
+		mesToClient := models.MessageStatus{
+			Message: "This email is already registered by user: " + user.Email,
+		}
+		httpresponder.Respond(writer, http.StatusConflict, mesToClient)
+		return
+	}
+
+	//row, _ := handler.database.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, user.Nickname)
+	//defer row.Close()
+	//if !row.Next() {
+	//	mesToClient := models.MessageStatus{
+	//		Message: "Can't find user by nickname: " + nickname,
+	//	}
+	//	httpresponder.Respond(writer, http.StatusConflict, mesToClient)
+	//	return
+	//}
+
+	err = handler.database.QueryRow(`SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1`, user.Nickname).Scan(
+		&user.Nickname,
+		&user.Fullname,
+		&user.About,
+		&user.Email)
 
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
@@ -204,31 +227,27 @@ func (handler *Handlers) CreateForum(writer http.ResponseWriter, request *http.R
 
 	if ok {
 		if driverErr.Code == "23505" {
-			row, err := handler.database.Query(`SELECT title, "user", slug, posts, threads FROM forum WHERE slug = $1`,
+			row, err := handler.database.Query(`SELECT title, "user", slug FROM forum WHERE slug = $1`,
 				forum.Slug)
 			if err != nil {
 				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 				return
 			}
+			forum := models.Forum{}
 			defer row.Close()
-			var forums []models.Forum
 			for row.Next() {
-				forum := models.Forum{}
 				err = row.Scan(
 					&forum.Title,
 					&forum.User,
-					&forum.Slug,
-					&forum.Posts,
-					&forum.Threads)
+					&forum.Slug)
 				if err != nil {
 					httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 					return
 				}
 
-				forums = append(forums, forum)
 			}
 
-			httpresponder.Respond(writer, http.StatusConflict, forums)
+			httpresponder.Respond(writer, http.StatusConflict, forum)
 			return
 		}
 	}
