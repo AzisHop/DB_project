@@ -764,6 +764,8 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 	httpresponder.Respond(writer, http.StatusCreated, postsToClient)
 }
 
+
+
 func (handler *Handlers) GetThread(writer http.ResponseWriter, request *http.Request) {
 	data := mux.Vars(request)
 	slugOrId := data["slug_or_id"]
@@ -1243,9 +1245,40 @@ func (handler *Handlers) VoiceThread(writer http.ResponseWriter, request *http.R
 	}
 
 	voice.Thread = thread.Id
+	curVoice := 0
 
-	_, err = tranc.Exec(`INSERT INTO votes (thread, voice, nickname) VALUES ($1, $2, $3)`,
-		voice.Thread, voice.Voice, voice.Nickname)
+	err = tranc.QueryRow(`INSERT INTO votes (thread, voice, nickname) VALUES ($1, $2, $3) RETURNING voice`,
+		voice.Thread, voice.Voice, voice.Nickname).Scan(&curVoice)
+
+	driverErr, ok := err.(pgx.PgError)
+
+	if ok {
+		if driverErr.Code == "23505" {
+			_ = tranc.Rollback()
+			tranc, _ = handler.database.Begin()
+			oldVoice := 0
+			err = tranc.QueryRow(`SELECT voice FROM votes WHERE nickname = $1 AND thread = $2`, voice.Nickname, voice.Thread).Scan(&oldVoice)
+			if err != nil {
+				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+				return
+			}
+			err = tranc.QueryRow(`UPDATE votes SET voice = $1 WHERE nickname = $2 AND thread = $3 RETURNING voice`, voice.Voice, voice.Nickname, voice.Thread).Scan(&curVoice)
+			if err != nil {
+				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+				return
+			}
+			thread.Votes = curVoice - oldVoice
+		}
+	} else {
+		thread.Votes = curVoice
+	}
+
+	if err != nil {
+		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		return
+	}
+
+	err = tranc.QueryRow(`UPDATE thread SET votes = votes + $1 WHERE id = $2 RETURNING votes`, thread.Votes, voice.Thread).Scan(&thread.Votes)
 
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)

@@ -144,25 +144,25 @@ EXECUTE PROCEDURE postTriggerFunc();
 
 
 
-CREATE OR REPLACE FUNCTION voteTriggerFunc()
-    RETURNS trigger AS
-$$
-BEGIN
-    UPDATE thread SET votes = votes + 1
-    WHERE id = new.thread;
-
-    RETURN NEW;
-END;
-$$
-    LANGUAGE 'plpgsql';
-
-drop trigger IF EXISTS voteTrigger on votes;
-
-CREATE TRIGGER voteTrigger
-    AFTER INSERT
-    ON votes
-    FOR EACH ROW
-EXECUTE PROCEDURE voteTriggerFunc();
+-- CREATE OR REPLACE FUNCTION voteTriggerFunc()
+--     RETURNS trigger AS
+-- $$
+-- BEGIN
+--     UPDATE thread SET votes = votes + new.voice
+--     WHERE id = new.thread;
+--
+--     RETURN NEW;
+-- END;
+-- $$
+--     LANGUAGE 'plpgsql';
+--
+-- drop trigger IF EXISTS voteTrigger on votes;
+--
+-- CREATE TRIGGER voteTrigger
+--     AFTER INSERT
+--     ON votes
+--     FOR EACH ROW
+-- EXECUTE PROCEDURE voteTriggerFunc();
 
 SELECT nickname, fullname, about, email
 FROM allUsersForum
