@@ -216,6 +216,13 @@ func (handler *Handlers) CreateForum(writer http.ResponseWriter, request *http.R
 		}
 		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 		return
+	} else {
+		err = row.Scan(&forum.User)
+
+		if err != nil {
+			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			return
+		}
 	}
 
 	_, err = handler.database.Exec(`INSERT INTO forum (title, "user", slug) VALUES ($1, $2, $3)`,
@@ -354,38 +361,65 @@ func (handler *Handlers) CreateThreadForum(writer http.ResponseWriter, request *
 	//	return
 	//}
 	if thread.Slug == "" {
-		_, err = tranc.Exec(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7)`,
+		err = tranc.QueryRow(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7) RETURNING id`,
 			thread.Title,
 			thread.Author,
 			thread.Forum,
 			thread.Message,
 			thread.Votes,
 			sql.NullString{},
-			thread.Created)
+			thread.Created).Scan(&thread.Id)
 	} else {
-		_, err = tranc.Exec(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7)`,
+		 err = tranc.QueryRow(`INSERT INTO thread(title, author, forum, message, votes, slug, created) VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6, $7) RETURNING id`,
 			thread.Title,
 			thread.Author,
 			thread.Forum,
 			thread.Message,
 			thread.Votes,
 			thread.Slug,
-			thread.Created)
+			thread.Created).Scan(&thread.Id)
 	}
 
-	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
-		return
-	}
+	//if err != nil {
+	//	httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+	//	return
+	//}
 
 	//thread := models.Thread{}
 
-	err = tranc.Commit()
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		tranc, _ = handler.database.Begin()
+		err = tranc.QueryRow(`SELECT id, title, author, forum, message, votes, slug, created FROM thread WHERE slug = $1`,
+			thread.Slug).Scan(
+				&thread.Id,
+				&thread.Title,
+				&thread.Author,
+				&thread.Forum,
+				&thread.Message,
+				&thread.Votes,
+				&thread.Slug,
+				&thread.Created)
+		//
+		if err != nil {
+			_ = tranc.Rollback()
+			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			return
+		}
+		httpresponder.Respond(writer, http.StatusConflict, thread)
 		return
 	}
+
+	//err = tranc.QueryRow(`SELECT id FROM thread WHERE id = $1 LIMIT 1`, thread.Slug).Scan(&thread.Id)
+	//if err != nil {
+	//	_ = tranc.Rollback()
+	//	mesToClient := models.MessageStatus{
+	//		Message: "Can't find user by slug: " + thread.Author,
+	//	}
+	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	//	return
+	//}
+	err = tranc.Commit()
 
 	httpresponder.Respond(writer, http.StatusCreated, thread)
 }
@@ -488,7 +522,7 @@ func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Re
 	var row *pgx.Rows
 	if since != "" && desc {
 		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
-		created FROM thread tr WHERE forum = $1 AND created = $2 ORDER BY created DESC LIMIT $3`,
+		created FROM thread tr WHERE forum = $1 AND created <= $2 ORDER BY created DESC LIMIT $3`,
 			forum.Slug, since, limit)
 	} else if desc {
 		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
@@ -496,7 +530,7 @@ func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Re
 			forum.Slug, limit)
 	} else if since != "" {
 		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
-		created FROM thread tr WHERE forum = $1 AND created = $2 ORDER BY created LIMIT $3`,
+		created FROM thread tr WHERE forum = $1 AND created >= $2 ORDER BY created LIMIT $3`,
 			forum.Slug, since, limit)
 	} else {
 		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
@@ -540,7 +574,11 @@ func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Re
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
-	httpresponder.Respond(writer, http.StatusOK, threads)
+	if len(threads) == 0 {
+		httpresponder.Respond(writer, http.StatusOK, []models.Thread{})
+		return
+	}
+		httpresponder.Respond(writer, http.StatusOK, threads)
 
 	//mesToClient := models.MessageStatus{
 	//	Message: "Can't find user by nickname: " + slug,
@@ -567,7 +605,12 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 		return
 	}
 
-	tranc, err := handler.database.Begin()
+	if len(posts) == 0 {
+		httpresponder.Respond(writer, http.StatusCreated, []models.Post{})
+		return
+	}
+
+		tranc, err := handler.database.Begin()
 
 	if err != nil {
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
@@ -588,7 +631,7 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 		}
 	} else {
 		thread.Slug = slugOrId
-		err = tranc.QueryRow(`SELECT slug, forum, id FROM forum WHERE slug = $1`, thread.Slug).Scan(&thread.Slug, &thread.Id, &thread.Forum)
+		err = tranc.QueryRow(`SELECT slug, forum, id FROM thread WHERE slug = $1`, thread.Slug).Scan(&thread.Slug, &thread.Forum, &thread.Id)
 		if err != nil {
 			_ = tranc.Rollback()
 			mesToClient := models.MessageStatus{
