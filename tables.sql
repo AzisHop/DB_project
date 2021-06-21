@@ -190,3 +190,9 @@ WHERE forum = 'KH0Nm-SP_L5J8'
   AND date_part('year', created)  = date_part('year', date '2021-08-31T12:27:00.307Z') ORDER BY created DESC LIMIT 4
 
 SELECT id, title, author, forum, message, votes, coalesce(slug,''),created FROM thread tr WHERE forum = 'KH0Nm-SP_L5J8' AND date_part('year', created)  = date_part('year', date '2021-08-31T12:27:00.307Z') ORDER BY created DESC LIMIT 4
+
+
+
+SELECT nickname FROM userForum WHERE nickname = 'mira.rP28QfR9DIfFJU'
+
+SELECT nickname FROM userForum WHERE nickname = 'aut.s1y035NL1c5Cj'
