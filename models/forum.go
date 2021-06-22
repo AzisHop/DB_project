@@ -46,7 +46,7 @@ type Post struct {
 type AllInfo struct {
 	Post    *Post   `json:"post" db:"post"`
 	Thread  *Thread    `json:"thread,omitempty" db:"thread"`
-	User  *User `json:"user" db:"user,omitempty"`
+	Author  *User `json:"author" db:"author,omitempty"`
 	Forum *Forum `json:"forum,omitempty" db:"forum"`
 }
 
