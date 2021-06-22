@@ -117,6 +117,8 @@ CREATE OR REPLACE FUNCTION postTriggerFunc()
     RETURNS trigger AS
 $$
 BEGIN
+    NEW.path = (SELECT path FROM post WHERE id = NEW.parent LIMIT 1) || NEW.id;
+
     INSERT INTO allUsersForum(forum, nickname,fullname, about, email)
         SELECT new.forum, nickname, fullname, about, email
         FROM userForum
@@ -126,6 +128,8 @@ BEGIN
     UPDATE forum SET posts = forum.posts + 1
     WHERE slug = new.forum;
 
+
+
     RETURN NEW;
 END;
 $$
@@ -134,7 +138,7 @@ $$
 drop trigger IF EXISTS postTrigger on post;
 
 CREATE TRIGGER postTrigger
-    AFTER INSERT
+    BEFORE INSERT
     ON post
     FOR EACH ROW
 EXECUTE PROCEDURE postTriggerFunc();
@@ -193,6 +197,10 @@ SELECT id, title, author, forum, message, votes, coalesce(slug,''),created FROM 
 
 
 
-SELECT nickname FROM userForum WHERE nickname = 'mira.rP28QfR9DIfFJU'
+SELECT nickname FROM userForum WHERE nickname = 'mira.rP28QfR9DIfFJU';
 
-SELECT nickname FROM userForum WHERE nickname = 'aut.s1y035NL1c5Cj'
+SELECT nickname FROM userForum WHERE nickname = 'aut.s1y035NL1c5Cj';
+
+SELECT title, "user", coalesce(slug, ''), posts, threads FROM forum WHERE slug = 'cC32xovt-jJfK';
+
+SELECT slug FROM forum WHERE slug = 'sOjqtEFg-FCF86';
