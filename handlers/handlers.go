@@ -407,7 +407,7 @@ func (handler *Handlers) CreateThreadForum(writer http.ResponseWriter, request *
 			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 			return
 		}
-		err = tranc.Commit()
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusConflict, thread)
 		return
 	}
@@ -462,7 +462,6 @@ func (handler *Handlers) GetUsersForum(writer http.ResponseWriter, request *http
 		mesToClient := models.MessageStatus{
 			Message: "Can't find forum by slug: " + forum.Slug,
 		}
-		err = tranc.Commit()
 		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 		return
 	}
@@ -1313,8 +1312,10 @@ func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Re
 	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
 	//var row *pgx.Rows
 
-	err = tranc.QueryRow(`SELECT id FROM post WHERE id = $1`,
-		&post.Id).Scan(&post.Id)
+	oldMes := ""
+
+	err = tranc.QueryRow(`SELECT id, message FROM post WHERE id = $1`,
+		&post.Id).Scan(&post.Id, &oldMes)
 
 	if err != nil {
 		mesToClient := models.MessageStatus{
@@ -1325,10 +1326,20 @@ func (handler *Handlers) UpdatePost(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	err = tranc.QueryRow(`UPDATE post SET message = (CASE WHEN $1 != '' THEN $1 ELSE message END), isEdited = true WHERE id = $2
+	if post.Message == "" {
+		post.IsEdited = false
+	} else {
+		post.IsEdited = true
+	}
+	if post.Message == oldMes {
+		post.IsEdited = false
+	}
+
+	err = tranc.QueryRow(`UPDATE post SET message = (CASE WHEN $1 != '' THEN $1 ELSE message END), isEdited = $3 WHERE id = $2
 	RETURNING author, isedited, forum, thread, created, message`,
 		post.Message,
-		post.Id).Scan(
+		post.Id,
+		post.IsEdited).Scan(
 		&post.Author,
 		&post.IsEdited,
 		&post.Forum,
