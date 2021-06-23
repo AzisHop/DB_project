@@ -29,13 +29,13 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 
 	err := json.NewDecoder(request.Body).Decode(&forum)
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
 	row, err1 := handler.database.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, forum.User)
 	if err1 != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 	defer row.Close()
@@ -49,7 +49,7 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 		err = row.Scan(&forum.User)
 
 		if err != nil {
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 	}
@@ -66,7 +66,7 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 			row, err := handler.database.Query(`SELECT title, "user", slug FROM forum WHERE slug = $1`,
 				forum.Slug)
 			if err != nil {
-				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+				panic(err)
 				return
 			}
 			forum := models.Forum{}
@@ -77,7 +77,7 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 					&forum.User,
 					&forum.Slug)
 				if err != nil {
-					httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+					panic(err)
 					return
 				}
 
@@ -101,7 +101,7 @@ func (handler *ForumHandler) GetForum(writer http.ResponseWriter, request *http.
 		forum.Slug)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (handler *ForumHandler) GetForum(writer http.ResponseWriter, request *http.
 			&forum.Threads)
 
 		if err != nil {
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 
@@ -138,7 +138,7 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 
 	err := json.NewDecoder(request.Body).Decode(&thread)
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -149,7 +149,7 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -232,7 +232,7 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 		//
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 		_ = tranc.Rollback()
@@ -278,7 +278,7 @@ func (handler *ForumHandler) GetUsersForum(writer http.ResponseWriter, request *
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -313,7 +313,7 @@ func (handler *ForumHandler) GetUsersForum(writer http.ResponseWriter, request *
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 	var users []models.User
@@ -329,7 +329,7 @@ func (handler *ForumHandler) GetUsersForum(writer http.ResponseWriter, request *
 
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 
@@ -374,7 +374,7 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -412,7 +412,7 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -432,7 +432,7 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 
@@ -442,7 +442,7 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 	if len(threads) == 0 {

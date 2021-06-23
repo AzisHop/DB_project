@@ -28,7 +28,6 @@ func (handler *PostHandler) UpdatePost(writer http.ResponseWriter, request *http
 	idPost, err := strconv.Atoi(id)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		panic(err)
 		return
 	}
@@ -37,7 +36,7 @@ func (handler *PostHandler) UpdatePost(writer http.ResponseWriter, request *http
 	err = json.NewDecoder(request.Body).Decode(&post)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -45,7 +44,7 @@ func (handler *PostHandler) UpdatePost(writer http.ResponseWriter, request *http
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -89,14 +88,14 @@ func (handler *PostHandler) UpdatePost(writer http.ResponseWriter, request *http
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
 	err = tranc.Commit()
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -111,7 +110,6 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 	idPost, err := strconv.Atoi(id)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		panic(err)
 		return
 	}
@@ -139,14 +137,14 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 	}
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -248,7 +246,7 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 	err = tranc.Commit()
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 

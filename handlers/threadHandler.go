@@ -36,14 +36,14 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 
 	err = json.NewDecoder(request.Body).Decode(&posts)
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 		//defer row.Close()
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 		if row.Next() {
@@ -93,7 +93,7 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 			if err != nil {
 				row.Close()
 				_ = tranc.Rollback()
-				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+				panic(err)
 				return
 			}
 		}
@@ -123,7 +123,7 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 
@@ -169,7 +169,6 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 	if err != nil {
 		fmt.Println("BBBBBBBBB")
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		panic(err)
 		return
 	}
@@ -190,7 +189,6 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 			panic(err)
 			return
 		}
@@ -207,7 +205,6 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 		fmt.Println(row.Values())
 		fmt.Println(postsToClient)
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		panic(err)
 		return
 	}
@@ -230,7 +227,7 @@ func (handler *ThreadHandler) GetThread(writer http.ResponseWriter, request *htt
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 	var row *pgx.Rows
@@ -244,7 +241,7 @@ func (handler *ThreadHandler) GetThread(writer http.ResponseWriter, request *htt
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -263,7 +260,7 @@ func (handler *ThreadHandler) GetThread(writer http.ResponseWriter, request *htt
 
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 		err = tranc.Commit()
@@ -294,14 +291,14 @@ func (handler *ThreadHandler) UpdateThread(writer http.ResponseWriter, request *
 	err = json.NewDecoder(request.Body).Decode(&threadPars)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -372,14 +369,14 @@ func (handler *ThreadHandler) UpdateThread(writer http.ResponseWriter, request *
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
 	err = tranc.Commit()
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -427,7 +424,7 @@ func (handler *ThreadHandler) GetThreadPosts(writer http.ResponseWriter, request
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -490,7 +487,7 @@ func (handler *ThreadHandler) GetThreadPosts(writer http.ResponseWriter, request
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -511,7 +508,7 @@ func (handler *ThreadHandler) GetThreadPosts(writer http.ResponseWriter, request
 
 		if err != nil {
 			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 
@@ -543,14 +540,14 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 	err = json.NewDecoder(request.Body).Decode(&voice)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 	userNickname := ""
@@ -625,12 +622,12 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 			oldVoice := 0
 			err = tranc.QueryRow(`SELECT voice FROM votes WHERE nickname = $1 AND thread = $2`, voice.Nickname, voice.Thread).Scan(&oldVoice)
 			if err != nil {
-				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+				panic(err)
 				return
 			}
 			err = tranc.QueryRow(`UPDATE votes SET voice = $1 WHERE nickname = $2 AND thread = $3 RETURNING voice`, voice.Voice, voice.Nickname, voice.Thread).Scan(&curVoice)
 			if err != nil {
-				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+				panic(err)
 				return
 			}
 			thread.Votes = curVoice - oldVoice
@@ -640,7 +637,7 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 	}
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -648,7 +645,7 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -656,7 +653,7 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 

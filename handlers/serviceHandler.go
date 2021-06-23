@@ -25,7 +25,7 @@ func (handler *ServiceHandler) ServiceStatus(writer http.ResponseWriter, request
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -33,7 +33,7 @@ func (handler *ServiceHandler) ServiceStatus(writer http.ResponseWriter, request
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -41,7 +41,7 @@ func (handler *ServiceHandler) ServiceStatus(writer http.ResponseWriter, request
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (handler *ServiceHandler) ServiceStatus(writer http.ResponseWriter, request
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -57,7 +57,7 @@ func (handler *ServiceHandler) ServiceStatus(writer http.ResponseWriter, request
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (handler *ServiceHandler) ServiceStatus(writer http.ResponseWriter, request
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -89,7 +89,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -97,7 +97,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -113,7 +113,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -129,7 +129,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func (handler *ServiceHandler) ServiceClear(writer http.ResponseWriter, request 
 
 	if err != nil {
 		_ = tranc.Rollback()
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 

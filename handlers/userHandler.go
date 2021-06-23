@@ -28,7 +28,7 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 
 	err := json.NewDecoder(request.Body).Decode(&user)
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -45,7 +45,7 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 			row, err := handler.database.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1 OR email = $2 LIMIT 2",
 				user.Nickname, user.Email)
 			if err != nil {
-				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+				panic(err)
 				return
 			}
 			defer row.Close()
@@ -58,7 +58,7 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 					&user.About,
 					&user.Email)
 				if err != nil {
-					httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+					panic(err)
 					return
 				}
 
@@ -83,7 +83,7 @@ func (handler *UserHandler) GetUser(writer http.ResponseWriter, request *http.Re
 		user.Nickname, user.Email)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (handler *UserHandler) GetUser(writer http.ResponseWriter, request *http.Re
 			return
 		}
 		if err != nil {
-			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+			panic(err)
 			return
 		}
 	}
@@ -119,7 +119,7 @@ func (handler *UserHandler) UpdateUser(writer http.ResponseWriter, request *http
 
 	err := json.NewDecoder(request.Body).Decode(&user)
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
@@ -151,8 +151,6 @@ func (handler *UserHandler) UpdateUser(writer http.ResponseWriter, request *http
 		WHERE nickname = $1`,
 		user.Nickname, user.Fullname, user.About, user.Email)
 
-	// ToDo statusConflict
-
 	if err != nil {
 		mesToClient := models.MessageStatus{
 			Message: "This email is already registered by user: " + user.Email,
@@ -168,7 +166,7 @@ func (handler *UserHandler) UpdateUser(writer http.ResponseWriter, request *http
 		&user.Email)
 
 	if err != nil {
-		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
+		panic(err)
 		return
 	}
 
