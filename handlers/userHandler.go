@@ -24,7 +24,8 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 	data := mux.Vars(request)
 	nickname := data["nickname"]
 
-	user := models.User{Nickname: nickname}
+	user := models.User{}
+	user.Nickname = nickname
 
 	err := json.NewDecoder(request.Body).Decode(&user)
 	if err != nil {
@@ -32,7 +33,15 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 		return
 	}
 
-	_, err1 := handler.database.Exec("INSERT INTO userForum (nickname, fullname, about, email) VALUES ($1, $2, $3, $4)",
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		_ = tranc.Rollback()
+		panic(err)
+		return
+	}
+
+	_, err1 := tranc.Exec("INSERT INTO userForum (nickname, fullname, about, email) VALUES ($1, $2, $3, $4)",
 		user.Nickname,
 		user.Fullname,
 		user.About,
@@ -42,7 +51,17 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 
 	if ok {
 		if driverErr.Code == "23505" {
-			row, err := handler.database.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1 OR email = $2 LIMIT 2",
+			_ = tranc.Rollback()
+
+			tranc, err = handler.database.Begin()
+
+			if err != nil {
+				_ = tranc.Rollback()
+				panic(err)
+				return
+			}
+
+			row, err := tranc.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1 OR email = $2",
 				user.Nickname, user.Email)
 			if err != nil {
 				panic(err)
@@ -58,6 +77,7 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 					&user.About,
 					&user.Email)
 				if err != nil {
+					_ = tranc.Rollback()
 					panic(err)
 					return
 				}
@@ -69,6 +89,12 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 			return
 		}
 	}
+	err = tranc.Commit()
+	if err != nil {
+		_ = tranc.Rollback()
+		panic(err)
+		return
+	}
 
 	httpresponder.Respond(writer, http.StatusCreated, user)
 }
@@ -79,7 +105,15 @@ func (handler *UserHandler) GetUser(writer http.ResponseWriter, request *http.Re
 
 	user := models.User{Nickname: nickname}
 
-	row, err := handler.database.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1 OR email = $2 LIMIT 2",
+	tranc, err := handler.database.Begin()
+
+	if err != nil {
+		_ = tranc.Rollback()
+		panic(err)
+		return
+	}
+
+	row, err := tranc.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1 OR email = $2 LIMIT 2",
 		user.Nickname, user.Email)
 
 	if err != nil {
@@ -108,6 +142,7 @@ func (handler *UserHandler) GetUser(writer http.ResponseWriter, request *http.Re
 	mesToClient := models.MessageStatus{
 		Message: "Can't find user by nickname: " + nickname,
 	}
+	_ = tranc.Rollback()
 	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 }
 
