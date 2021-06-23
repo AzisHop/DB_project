@@ -166,6 +166,7 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 	//defer row.Close()
 
 	var postsToClient []models.Post
+	//defer row.Close()
 	for row.Next() {
 		post := models.Post{}
 		err = row.Scan(
@@ -186,9 +187,9 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 
 		postsToClient = append(postsToClient, post)
 	}
-
+	row.Close()
 	err = tranc.Commit()
-
+	fmt.Println("AAAAAAAAAAA")
 	if err != nil {
 		fmt.Println("AAAAAAAAAAA")
 		fmt.Println(row.Err())
@@ -617,6 +618,7 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 	}
 
 	if err != nil {
+		_ = tranc.Rollback()
 		panic(err)
 		return
 	}

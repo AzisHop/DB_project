@@ -117,8 +117,6 @@ CREATE OR REPLACE FUNCTION postTriggerFunc()
     RETURNS trigger AS
 $$
 BEGIN
-    NEW.path = (SELECT path FROM post WHERE id = NEW.parent LIMIT 1) || NEW.id;
-
     INSERT INTO allUsersForum(forum, nickname,fullname, about, email)
         SELECT new.forum, nickname, fullname, about, email
         FROM userForum
@@ -128,7 +126,7 @@ BEGIN
     UPDATE forum SET posts = forum.posts + 1
     WHERE slug = new.forum;
 
-
+    NEW.path = (SELECT path FROM post WHERE id = NEW.parent LIMIT 1) || NEW.id;
 
     RETURN NEW;
 END;
@@ -142,31 +140,6 @@ CREATE TRIGGER postTrigger
     ON post
     FOR EACH ROW
 EXECUTE PROCEDURE postTriggerFunc();
-
-
-
-
-
-
--- CREATE OR REPLACE FUNCTION voteTriggerFunc()
---     RETURNS trigger AS
--- $$
--- BEGIN
---     UPDATE thread SET votes = votes + new.voice
---     WHERE id = new.thread;
---
---     RETURN NEW;
--- END;
--- $$
---     LANGUAGE 'plpgsql';
---
--- drop trigger IF EXISTS voteTrigger on votes;
---
--- CREATE TRIGGER voteTrigger
---     AFTER INSERT
---     ON votes
---     FOR EACH ROW
--- EXECUTE PROCEDURE voteTriggerFunc();
 
 SELECT nickname, fullname, about, email
 FROM allUsersForum

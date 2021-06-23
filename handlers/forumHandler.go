@@ -38,7 +38,7 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 		panic(err)
 		return
 	}
-	defer row.Close()
+
 	if !row.Next() {
 		mesToClient := models.MessageStatus{
 			Message: "Can't find user by nickname: " + forum.User,
@@ -53,6 +53,7 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 			return
 		}
 	}
+	row.Close()
 
 	_, err = handler.database.Exec(`INSERT INTO forum (title, "user", slug) VALUES ($1, $2, $3)`,
 		forum.Title,
@@ -70,7 +71,7 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 				return
 			}
 			forum := models.Forum{}
-			defer row.Close()
+
 			for row.Next() {
 				err = row.Scan(
 					&forum.Title,
@@ -82,7 +83,7 @@ func (handler *ForumHandler) CreateForum(writer http.ResponseWriter, request *ht
 				}
 
 			}
-
+			row.Close()
 			httpresponder.Respond(writer, http.StatusConflict, forum)
 			return
 		}

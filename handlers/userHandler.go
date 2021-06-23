@@ -84,7 +84,7 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 
 				users = append(users, user)
 			}
-
+			_ = tranc.Rollback()
 			httpresponder.Respond(writer, http.StatusConflict, users)
 			return
 		}
@@ -130,6 +130,7 @@ func (handler *UserHandler) GetUser(writer http.ResponseWriter, request *http.Re
 			&userInfo.About,
 			&userInfo.Email)
 		if strings.EqualFold(userInfo.Nickname, user.Nickname) {
+			_ = tranc.Rollback()
 			httpresponder.Respond(writer, http.StatusOK, userInfo)
 			return
 		}
