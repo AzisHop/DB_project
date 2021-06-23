@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type Forum struct {
 	Slug    string `json:"slug" db:"slug"`
@@ -62,3 +64,4 @@ type Service struct {
 	Thread  int    `json:"thread,omitempty" db:"thread"`
 	Post int `json:"post" db:"post,omitempty"`
 }
+

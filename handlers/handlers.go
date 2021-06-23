@@ -618,12 +618,10 @@ func (handler *Handlers) GetThreads(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	if len(threads) == 0 {
-		err = tranc.Commit()
 		httpresponder.Respond(writer, http.StatusOK, []models.Thread{})
 		return
 	}
 
-	err = tranc.Commit()
 	httpresponder.Respond(writer, http.StatusOK, threads)
 
 	//mesToClient := models.MessageStatus{
@@ -643,7 +641,6 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 	}
 
 	var posts []models.Post
-	fmt.Println(idThread)
 
 	err = json.NewDecoder(request.Body).Decode(&posts)
 	if err != nil {
@@ -667,7 +664,7 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 			mesToClient := models.MessageStatus{
 				Message: "Can't find thread by id: " + slugOrId,
 			}
-			err = tranc.Commit()
+
 			httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 			return
 		}
@@ -684,7 +681,7 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 		}
 	}
 	if len(posts) == 0 {
-		err = tranc.Commit()
+		err = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusCreated, []models.Post{})
 		return
 	}
@@ -692,33 +689,35 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 	if posts[0].Parent != 0 {
 		parent := posts[0].Parent
 		parent = -1
-		rows, err := tranc.Query("SELECT thread FROM post WHERE id = $1", posts[0].Parent)
+		row, err := tranc.Query("SELECT thread FROM post WHERE id = $1", posts[0].Parent)
+		//defer row.Close()
 		if err != nil {
 			_ = tranc.Rollback()
 			httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 			return
 		}
-		if rows.Next() {
-			err := rows.Scan(&parent)
+		if row.Next() {
+			err := row.Scan(&parent)
 			if err != nil {
+				row.Close()
 				_ = tranc.Rollback()
 				httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 				return
 			}
 		}
 		if parent != thread.Id {
+			row.Close()
 			_ = tranc.Rollback()
-			rows.Close()
 			mesToClient := models.MessageStatus{
 				Message: "message: Parent post was created in another thread",
 			}
 			httpresponder.Respond(writer, http.StatusConflict, mesToClient)
 			return
 		}
-		rows.Close()
+		row.Close()
 	}
 
-	var args []interface{}
+	var params []interface{}
 	valuesString := ""
 	created := time.Now()
 
@@ -741,7 +740,7 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 		//	httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		//	return
 		//}
-
+		fmt.Println(post.Author)
 		err = tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, post.Author).Scan(&post.Author)
 
 		if err != nil {
@@ -765,7 +764,7 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 
 		valuesString += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)",
 			index*6+1, index*6+2, index*6+3, index*6+4, index*6+5, index*6+6)
-		args = append(args, post.Parent, post.Author, post.Message, post.Forum, post.Thread, created)
+		params = append(params, post.Parent, post.Author, post.Message, post.Forum, post.Thread, created)
 		valuesString += ","
 
 	}
@@ -773,15 +772,16 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 	valuesString = valuesString[:len(valuesString)-1]
 
 	query := "INSERT INTO post (parent, author, message, forum, thread, created) VALUES " + valuesString + "RETURNING id, parent, author, message, isEdited, forum, thread, created"
-	row, err := tranc.Query(query, args...)
+	row, err := tranc.Query(query, params...)
 
 	if err != nil {
+		fmt.Println("BBBBBBBBB")
 		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		panic(err)
 		return
 	}
-	defer row.Close()
+	//defer row.Close()
 
 	var postsToClient []models.Post
 	for row.Next() {
@@ -809,6 +809,11 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 	err = tranc.Commit()
 
 	if err != nil {
+		fmt.Println("AAAAAAAAAAA")
+		fmt.Println(row.Err())
+		fmt.Println("_________________")
+		fmt.Println(row.Values())
+		fmt.Println(postsToClient)
 		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		panic(err)
@@ -817,156 +822,8 @@ func (handler *Handlers) CreatePostThread(writer http.ResponseWriter, request *h
 
 	httpresponder.Respond(writer, http.StatusCreated, postsToClient)
 
-	//valuesString = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)",
-	//	1, 2, 3, 4, 5, 6)
-	//var args []interface{}
-	//args = append(args, posts[0].Parent, posts[0].Author, posts[0].Message, posts[0].Forum, posts[0].Thread, created)
-	//valuesString += ","
 
 }
-
-//func (handler *Handlers) CreatePostThread(w http.ResponseWriter, r *http.Request) {
-//	params := mux.Vars(r)
-//	thread := params["slug_or_id"]
-//
-//	isId, err := strconv.Atoi(thread)
-//	if err != nil {
-//		isId = -1
-//	}
-//
-//	var posts []models.Post
-//
-//	if err := json.NewDecoder(r.Body).Decode(&posts); err != nil {
-//		httpresponder.Respond(w, http.StatusInternalServerError, nil)
-//		return
-//	}
-//
-//	var mes models.MessageStatus
-//
-//	var info models.Thread
-//
-//	tx, err := handler.database.Begin()
-//	if err != nil {
-//		httpresponder.Respond(w, http.StatusInternalServerError, nil)
-//		return
-//	}
-//
-//	if isId == -1 {
-//		err = tx.QueryRow("SELECT id, forum FROM forum.thread WHERE slug = $1 LIMIT 1", thread).Scan(&info.Id, &info.Forum)
-//		if err != nil {
-//			mes.Message = "Can't find post thread by slug: " + thread
-//		}
-//	} else {
-//		err = tx.QueryRow("SELECT id, forum FROM thread WHERE id = $1 LIMIT 1", isId).Scan(&info.Id, &info.Forum)
-//		if err != nil {
-//			mes.Message = "Can't find post thread by id: " + strconv.Itoa(isId)
-//		}
-//	}
-//
-//	if err != nil {
-//		_ = tx.Rollback()
-//		httpresponder.Respond(w, http.StatusNotFound, mes)
-//		return
-//	}
-//
-//	if len(posts) == 0 {
-//		_ = tx.Rollback()
-//		httpresponder.Respond(w, http.StatusCreated, posts)
-//		return
-//	}
-//
-//	create := time.Now()
-//
-//	var values string
-//	var args []interface{}
-//	l := len(posts) - 1
-//
-//	if posts[0].Parent != 0 {
-//		var parent int
-//
-//		row, _ := tx.Query("SELECT thread FROM post WHERE id = $1", posts[0].Parent)
-//
-//		if row.Next() {
-//			err := row.Scan(&parent)
-//			if err != nil {
-//				_ = tx.Rollback()
-//				return
-//			}
-//		}
-//
-//		row.Close()
-//
-//		if parent != info.Id {
-//			mes := models.MessageStatus{}
-//			mes.Message = "Parent post was created in another thread"
-//			httpresponder.Respond(w, http.StatusConflict, mes)
-//			_ = tx.Rollback()
-//			return
-//		}
-//	}
-//
-//	for i, item := range posts {
-//		row, _ := tx.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1 LIMIT 1", item.Author)
-//		if !row.Next() {
-//			mes := models.MessageStatus{}
-//			mes.Message = "Can't find post author by nickname: " + item.Author
-//			httpresponder.Respond(w, http.StatusNotFound, mes)
-//			_ = tx.Rollback()
-//			return
-//		}
-//
-//		row.Close()
-//
-//		item.Thread = info.Id
-//		item.Forum = info.Forum
-//
-//		values += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)",
-//			i*6+1, i*6+2, i*6+3, i*6+4, i*6+5, i*6+6)
-//		args = append(args, item.Parent, item.Author, item.Message, item.Forum, item.Thread, create)
-//		if i != l {
-//			values += ","
-//		}
-//	}
-//
-//	query := "INSERT INTO post(parent, author, message, forum, thread, created) VALUES " + values + " RETURNING id, parent, author, message, isEdited, forum, thread, created"
-//	posts = []models.Post{}
-//	row, err := tx.Query(query, args...)
-//
-//	if err != nil {
-//		httpresponder.Respond(w, http.StatusInternalServerError, nil)
-//		_ = tx.Rollback()
-//		return
-//	}
-//
-//	for row.Next() {
-//		p := models.Post{}
-//		err = row.Scan(
-//			&p.Id,
-//			&p.Parent,
-//			&p.Author,
-//			&p.Message,
-//			&p.IsEdited,
-//			&p.Forum,
-//			&p.Thread,
-//			&p.Created)
-//		if err != nil {
-//			_ = tx.Rollback()
-//			httpresponder.Respond(w, http.StatusInternalServerError, nil)
-//			return
-//		}
-//
-//		posts = append(posts, p)
-//	}
-//
-//	err = tx.Commit()
-//	if err != nil {
-//		_ = tx.Rollback()
-//		httpresponder.Respond(w, http.StatusInternalServerError, nil)
-//		return
-//	}
-//
-//	httpresponder.Respond(w, http.StatusCreated, posts)
-//}
 
 func (handler *Handlers) GetThread(writer http.ResponseWriter, request *http.Request) {
 	data := mux.Vars(request)
@@ -1041,7 +898,6 @@ func (handler *Handlers) UpdateThread(writer http.ResponseWriter, request *http.
 	if err != nil {
 		idThread = 0
 	}
-	fmt.Println(request.Body == nil)
 
 	err = json.NewDecoder(request.Body).Decode(&threadPars)
 
@@ -1122,7 +978,6 @@ func (handler *Handlers) UpdateThread(writer http.ResponseWriter, request *http.
 		}
 	}
 
-
 	if err != nil {
 		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
@@ -1177,6 +1032,11 @@ func (handler *Handlers) GetThreadPosts(writer http.ResponseWriter, request *htt
 		idThread = 0
 	}
 
+	//since1, err := strconv.Atoi(request.URL.Query().Get("since"))
+	//if err != nil {
+	//	since1 = 0
+	//}
+
 	tranc, err := handler.database.Begin()
 
 	if err != nil {
@@ -1206,36 +1066,37 @@ func (handler *Handlers) GetThreadPosts(writer http.ResponseWriter, request *htt
 
 	var row *pgx.Rows
 
-
 	switch sort {
+
 	case "flat":
-		if since == ""  {
+		if since == "" {
 			row, err = tranc.Query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM post
-			 WHERE thread = $1 ORDER BY id ` + descString + ` LIMIT $2`, thread.Id, limit)
+			 WHERE thread = $1 ORDER BY id `+descString+` LIMIT $2`, thread.Id, limit)
 		} else {
 			row, err = tranc.Query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM post
-			 WHERE thread = $1 AND id ` + descOper + ` $2 ORDER BY id  ` + descString + ` LIMIT $3`, thread.Id, since, limit)
+			 WHERE thread = $1 AND id `+descOper+` $2 ORDER BY id  `+descString+` LIMIT $3`, thread.Id, since, limit)
 		}
 
 	case "tree":
-		if since == ""  {
+		if since == "" {
 			row, err = tranc.Query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM post
-			 WHERE thread = $1 ORDER BY path ` + descString + `, id ` + descString + ` LIMIT $2`, thread.Id, limit)
+			 WHERE thread = $1 ORDER BY path `+descString+`, id `+descString+` LIMIT $2`, thread.Id, limit)
 		} else {
 			row, err = tranc.Query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM post
-			 WHERE thread = $1 AND path ` + descOper + ` (SELECT path FROM post WHERE id = $2) ORDER BY path ` + descString + ` LIMIT $3`, thread.Id, since, limit)
+			 WHERE thread = $1 AND path `+descOper+` (SELECT path FROM post WHERE id = $2) ORDER BY path `+descString+` LIMIT $3`, thread.Id, since, limit)
 		}
+
 	case "parent_tree":
-		if since == ""  {
+		if since == "" {
 			row, err = tranc.Query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM post
-			 WHERE thread = $1 AND path[1] IN (SELECT path[1] FROM post WHERE thread = $1 AND array_length(path, 1) = 1 ORDER BY path ` + descString + ` LIMIT $2)
-		     ORDER BY path[1] ` + descString + `, path[2:]`, thread.Id, limit)
+			 WHERE thread = $1 AND path[1] IN (SELECT path[1] FROM post WHERE thread = $1 AND array_length(path, 1) = 1 ORDER BY path `+descString+` LIMIT $2)
+		    ORDER BY path[1] `+descString+`, path[2:]`, thread.Id, limit)
 		} else {
-			row, err = tranc.Query(`SELECT id, parent, author, message, isEdited, forum, thread, created FROM post
-			 WHERE thread = $1 AND path[1] IN (SELECT path[1] FROM post WHERE thread = $1 AND array_length(path, 1) = 1
-             AND path[1] ` + descOper + ` (SELECT path[1] FROM post WHERE id = $3)
-			 ORDER BY path LIMIT $2)
-		     ORDER BY path[1] ` + descString +  `, path[2:]`, thread.Id, limit, since)
+			row, err = tranc.Query(
+				`SELECT id, parent, author, message, isEdited, forum, thread, created FROM post
+					WHERE path[1] IN (SELECT id FROM post WHERE thread = $1 AND parent = 0 and path[1] `+descOper+` (SELECT path[1] FROM post WHERE id = $3 LIMIT 1)
+					ORDER BY id `+descString+` LIMIT $2) ORDER BY path[1] `+descString+`, path, id`,
+				thread.Id, limit, since)
 		}
 
 	}
@@ -1277,7 +1138,7 @@ func (handler *Handlers) GetThreadPosts(writer http.ResponseWriter, request *htt
 		return
 	}
 
-		httpresponder.Respond(writer, http.StatusOK, posts)
+	httpresponder.Respond(writer, http.StatusOK, posts)
 
 }
 
@@ -1723,6 +1584,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	_, err = tranc.Exec(`DELETE FROM votes`)
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
@@ -1730,6 +1592,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	_, err = tranc.Exec(`DELETE FROM post`)
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
@@ -1737,6 +1600,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	_, err = tranc.Exec(`DELETE FROM thread`)
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
@@ -1744,6 +1608,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	_, err = tranc.Exec(`DELETE FROM allUsersForum`)
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
@@ -1751,6 +1616,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	_, err = tranc.Exec(`DELETE FROM forum`)
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
@@ -1758,6 +1624,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	_, err = tranc.Exec(`DELETE FROM userForum`)
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
@@ -1765,6 +1632,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	_, err = tranc.Exec(`DELETE FROM userForum`)
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}
@@ -1772,6 +1640,7 @@ func (handler *Handlers) ServiceClear(writer http.ResponseWriter, request *http.
 	err = tranc.Commit()
 
 	if err != nil {
+		_ = tranc.Rollback()
 		httpresponder.Respond(writer, http.StatusInternalServerError, nil)
 		return
 	}

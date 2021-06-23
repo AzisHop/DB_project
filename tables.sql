@@ -204,3 +204,6 @@ SELECT nickname FROM userForum WHERE nickname = 'aut.s1y035NL1c5Cj';
 SELECT title, "user", coalesce(slug, ''), posts, threads FROM forum WHERE slug = 'cC32xovt-jJfK';
 
 SELECT slug FROM forum WHERE slug = 'sOjqtEFg-FCF86';
+
+
+SELECT nickname FROM userForum WHERE nickname = 'o.doy3Qyi05C55RU'
