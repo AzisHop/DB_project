@@ -118,21 +118,12 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 		post.Created = created
 		post.Thread = thread.Id
 
-		//err = tranc.QueryRow(`SELECT id FROM post WHERE thread = $1 AND id = $2`, thread.Id, post.Parent,
-		//).Scan(&post.Parent)
-
 		if err != nil {
 			_ = tranc.Rollback()
 			panic(err)
 			return
 		}
 
-		//if post.Parent != 0 {
-		//	_ = tranc.Rollback()
-		//	httpresponder.Respond(writer, http.StatusInternalServerError, nil)
-		//	return
-		//}
-		fmt.Println(post.Author)
 		err = tranc.QueryRow(`SELECT nickname FROM userForum WHERE nickname = $1`, post.Author).Scan(&post.Author)
 
 		if err != nil {
@@ -336,15 +327,6 @@ func (handler *ThreadHandler) UpdateThread(writer http.ResponseWriter, request *
 		return
 	}
 
-	//err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`, thread.Forum).Scan(&thread.Forum)
-	//if err != nil {
-	//	_ = tranc.Rollback()
-	//	mesToClient := models.MessageStatus{
-	//		Message: "Can't find user by slug: " + thread.Author,
-	//	}
-	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
-	//	return
-	//}
 	if threadPars.Title != "" || threadPars.Message != "" {
 		if threadPars.Message == "" {
 			threadPars.Message = thread.Message
@@ -568,8 +550,6 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 		return
 	}
 
-	//row, err1 := tranc.Query(`SELECT nickname FROM userForum WHERE nickname = $1`, thread.Author)
-	//var row *pgx.Rows
 	var thread models.Thread
 
 	if idThread != 0 {

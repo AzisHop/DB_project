@@ -408,8 +408,6 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 			forum.Slug, limit)
 	}
 
-	//row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''), created FROM thread tr WHERE forum = $1 ORDER BY created`, forum.Slug)
-
 	if err != nil {
 		_ = tranc.Rollback()
 		panic(err)
@@ -451,9 +449,4 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 	}
 
 	httpresponder.Respond(writer, http.StatusOK, threads)
-
-	//mesToClient := models.MessageStatus{
-	//	Message: "Can't find user by nickname: " + slug,
-	//}
-	//httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 }
