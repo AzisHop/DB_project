@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx"
 	"net/http"
-	"strings"
+	_ "strings"
 )
 
 type UserHandler struct {
@@ -100,51 +100,34 @@ func (handler *UserHandler) CreateUser(writer http.ResponseWriter, request *http
 }
 
 func (handler *UserHandler) GetUser(writer http.ResponseWriter, request *http.Request) {
-	data := mux.Vars(request)
-	nickname := data["nickname"]
+	params := mux.Vars(request)
+	nickname := params["nickname"]
 
-	user := models.User{Nickname: nickname}
+	user := models.User{}
 
-	tranc, err := handler.database.Begin()
+	row, _ := handler.database.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1",
+		nickname)
 
-	if err != nil {
-		_ = tranc.Rollback()
-		panic(err)
-		return
-	}
-
-	row, err := tranc.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1 OR email = $2 LIMIT 2",
-		user.Nickname, user.Email)
-
-	if err != nil {
-		panic(err)
+	if !row.Next() {
+		mes := models.MessageStatus{}
+		mes.Message = "Can't find user by nickname: " + nickname
+		httpresponder.Respond(writer, http.StatusNotFound, mes)
 		return
 	}
 
 	defer row.Close()
-	for row.Next() {
-		userInfo := models.User{}
-		err = row.Scan(
-			&userInfo.Nickname,
-			&userInfo.Fullname,
-			&userInfo.About,
-			&userInfo.Email)
-		if strings.EqualFold(userInfo.Nickname, user.Nickname) {
-			_ = tranc.Rollback()
-			httpresponder.Respond(writer, http.StatusOK, userInfo)
-			return
-		}
-		if err != nil {
-			panic(err)
-			return
-		}
+
+	err := row.Scan(
+		&user.Nickname,
+		&user.Fullname,
+		&user.About,
+		&user.Email)
+	if err != nil {
+		panic(err)
+		return
 	}
 
-	mesToClient := models.MessageStatus{
-		Message: "Can't find user by nickname: " + nickname,
-	}
-	_ = tranc.Rollback()
-	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	httpresponder.Respond(writer, http.StatusOK, user)
 }
 
 func (handler *UserHandler) UpdateUser(writer http.ResponseWriter, request *http.Request) {

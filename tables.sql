@@ -158,7 +158,7 @@ CREATE UNLOGGED TABLE allUsersForum
     PRIMARY KEY (nickname, forum)
 );
 
-CREATE INDEX usersAll on allUsersForum (forum, nickname, fullname, about, email)
+CREATE INDEX usersAll on allUsersForum (forum, nickname, fullname, about, email);
 
 drop table if exists votes;
 CREATE UNLOGGED TABLE votes (
