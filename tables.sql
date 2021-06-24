@@ -7,6 +7,18 @@ drop table if exists allUsersForum;
 drop table if exists forum;
 drop table if exists userForum;
 
+DROP INDEX if exists Users;
+DROP INDEX if exists threadSlug;
+DROP INDEX if exists threadCreated;
+DROP INDEX if exists threadForumHash;
+DROP INDEX if exists threads;
+DROP INDEX if exists postParent;
+DROP INDEX if exists postPath;
+DROP INDEX if exists voteIndex;
+DROP INDEX if exists usersAll;
+DROP INDEX if exists nickname;
+DROP INDEX if exists postPath2;
+
 CREATE TABLE userForum
 (
     nickname CITEXT collate "POSIX" PRIMARY KEY NOT NULL,
@@ -14,6 +26,9 @@ CREATE TABLE userForum
     about    TEXT,
     email    CITEXT             UNIQUE          NOT NULL
 );
+
+CREATE INDEX  Users ON userforum (nickname, fullname, about, email);
+CREATE INDEX if not exists nickname on userforum using hash (nickname);
 
 CREATE TABLE forum
 (
@@ -64,6 +79,11 @@ CREATE TRIGGER forum_thread
     ON thread
     FOR EACH ROW
 EXECUTE PROCEDURE postTriggerFunc();
+
+CREATE INDEX  threadSlug ON thread using hash (slug);
+CREATE INDEX  threadCreated ON thread (created);
+CREATE INDEX  threadForumHash ON thread using hash (forum);
+CREATE INDEX  threads on thread (forum, slug, created,title, author, message, votes);
 
 
 CREATE UNLOGGED TABLE post
@@ -119,7 +139,9 @@ CREATE TRIGGER postTrigger
     FOR EACH ROW
 EXECUTE PROCEDURE postTriggerFunction();
 
-
+CREATE INDEX  postParent on post (thread, parent);
+CREATE INDEX  postPath on post ((path[1]), id);
+CREATE INDEX postPath2 on post using gin (path);
 
 drop table if exists allUsersForum;
 CREATE UNLOGGED TABLE allUsersForum
@@ -135,6 +157,9 @@ CREATE UNLOGGED TABLE allUsersForum
         REFERENCES userForum (nickname),
     PRIMARY KEY (nickname, forum)
 );
+
+CREATE INDEX usersAll on allUsersForum (forum, nickname, fullname, about, email)
+
 drop table if exists votes;
 CREATE UNLOGGED TABLE votes (
                                 thread   bigint    NOT NULL,
@@ -147,25 +172,19 @@ CREATE UNLOGGED TABLE votes (
                                 PRIMARY KEY (thread, nickname)
 );
 
-DROP INDEX if exists Users;
-DROP INDEX if exists threadSlug;
-DROP INDEX if exists threadCreated;
-DROP INDEX if exists threadForumHash;
-DROP INDEX if exists threads;
-DROP INDEX if exists postParent;
-DROP INDEX if exists postPath;
-DROP INDEX if exists voteIndex;
-DROP INDEX if exists usersAll;
 
-CREATE INDEX  Users ON userforum (nickname, fullname, about, email);
-create INDEX  postParent on post (thread, parent);
-create INDEX  postPath on post ((path[1]), id);
-CREATE INDEX  threadSlug ON thread using hash (slug);
-CREATE INDEX  threadCreated ON thread (created);
-CREATE INDEX  threadForumHash ON thread using hash (forum);
-CREATE INDEX  threads on thread (forum, slug, created,title, author, message, votes);
+
+-- CREATE INDEX  Users ON userforum (nickname, fullname, about, email);
+-- CREATE INDEX if not exists nickname on userforum using hash (nickname);
+-- CREATE INDEX  postParent on post (thread, parent);
+-- CREATE INDEX  postPath on post ((path[1]), id);
+-- CREATE INDEX postPath2 on post using gin (path);
+-- CREATE INDEX  threadSlug ON thread using hash (slug);
+-- CREATE INDEX  threadCreated ON thread (created);
+-- CREATE INDEX  threadForumHash ON thread using hash (forum);
+-- CREATE INDEX  threads on thread (forum, slug, created,title, author, message, votes);
 CREATE INDEX voteIndex on votes (thread, nickname, voice);
-CREATE INDEX usersAll on allUsersForum (forum, nickname, fullname, about, email)
+-- CREATE INDEX usersAll on allUsersForum (forum, nickname, fullname, about, email)
 
 
 
