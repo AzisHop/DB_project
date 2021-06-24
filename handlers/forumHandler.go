@@ -164,14 +164,6 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 		return
 	}
-	//if !row.Next() {
-	//	mesToClient := models.MessageStatus{
-	//		Message: "Can't find user by nickname: " + thread.Author,
-	//	}
-	//	_ = tranc.Rollback()
-	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
-	//	return
-	//}
 
 	err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`, thread.Forum).Scan(&thread.Forum)
 	if err != nil {
@@ -182,14 +174,7 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 		return
 	}
-	//if !row.Next() {
-	//	_ = tranc.Rollback()
-	//	mesToClient := models.MessageStatus{
-	//		Message: "Can't find user by nickname: " + thread.Author,
-	//	}
-	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
-	//	return
-	//}
+
 	if thread.Slug == "" {
 		err = tranc.QueryRow(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7) RETURNING id`,
 			thread.Title,

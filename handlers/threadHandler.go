@@ -49,7 +49,6 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 
 	var thread models.Thread
 	if idThread != 0 {
-		//thread.Id = idThread
 		err = tranc.QueryRow(`SELECT id, forum FROM thread WHERE id = $1`, idThread).Scan(&thread.Id, &thread.Forum)
 		if err != nil {
 			_ = tranc.Rollback()
@@ -189,7 +188,7 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 	}
 	row.Close()
 	err = tranc.Commit()
-	fmt.Println("AAAAAAAAAAA")
+	//fmt.Println("AAAAAAAAAAA")
 	if err != nil {
 		fmt.Println("AAAAAAAAAAA")
 		fmt.Println(row.Err())
