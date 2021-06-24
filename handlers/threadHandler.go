@@ -202,8 +202,6 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 	}
 
 	httpresponder.Respond(writer, http.StatusCreated, postsToClient)
-
-
 }
 
 func (handler *ThreadHandler) GetThread(writer http.ResponseWriter, request *http.Request) {
@@ -603,11 +601,13 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 			oldVoice := 0
 			err = tranc.QueryRow(`SELECT voice FROM votes WHERE nickname = $1 AND thread = $2`, voice.Nickname, voice.Thread).Scan(&oldVoice)
 			if err != nil {
+				_ = tranc.Rollback()
 				panic(err)
 				return
 			}
 			err = tranc.QueryRow(`UPDATE votes SET voice = $1 WHERE nickname = $2 AND thread = $3 RETURNING voice`, voice.Voice, voice.Nickname, voice.Thread).Scan(&curVoice)
 			if err != nil {
+				_ = tranc.Rollback()
 				panic(err)
 				return
 			}

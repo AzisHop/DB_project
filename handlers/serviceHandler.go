@@ -17,8 +17,6 @@ func CreateServiceHandler(database *pgx.ConnPool) *ServiceHandler {
 	}
 }
 
-
-
 func (handler *ServiceHandler) ServiceStatus(writer http.ResponseWriter, request *http.Request) {
 	var service models.Service
 

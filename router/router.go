@@ -17,7 +17,6 @@ func Routing() *mux.Router {
 
 
 	router := mux.NewRouter()
-	//handler := handlers.CreateHandler(postgres.GetPs())
 	userHandler := handlers.CreateUserHandler(postgres.GetPs())
 	forumHandler := handlers.CreateForumHandler(postgres.GetPs())
 	threadHandler := handlers.CreateThreadHandler(postgres.GetPs())

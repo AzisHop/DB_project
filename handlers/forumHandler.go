@@ -164,14 +164,6 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 		return
 	}
-	//if !row.Next() {
-	//	mesToClient := models.MessageStatus{
-	//		Message: "Can't find user by nickname: " + thread.Author,
-	//	}
-	//	_ = tranc.Rollback()
-	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
-	//	return
-	//}
 
 	err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`, thread.Forum).Scan(&thread.Forum)
 	if err != nil {
@@ -182,14 +174,7 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 		httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 		return
 	}
-	//if !row.Next() {
-	//	_ = tranc.Rollback()
-	//	mesToClient := models.MessageStatus{
-	//		Message: "Can't find user by nickname: " + thread.Author,
-	//	}
-	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
-	//	return
-	//}
+
 	if thread.Slug == "" {
 		err = tranc.QueryRow(`INSERT INTO thread(title, author, forum, message, votes, slug, created)VALUES ($1, $2, $3, CASE WHEN $4 = '' THEN NULL ELSE $4 END, $5, $6,  $7) RETURNING id`,
 			thread.Title,
@@ -209,13 +194,6 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 			thread.Slug,
 			thread.Created).Scan(&thread.Id)
 	}
-
-	//if err != nil {
-	//	httpresponder.Respond(writer, http.StatusInternalServerError, nil)
-	//	return
-	//}
-
-	//thread := models.Thread{}
 
 	if err != nil {
 		_ = tranc.Rollback()
@@ -241,15 +219,6 @@ func (handler *ForumHandler) CreateThreadForum(writer http.ResponseWriter, reque
 		return
 	}
 
-	//err = tranc.QueryRow(`SELECT id FROM thread WHERE id = $1 LIMIT 1`, thread.Slug).Scan(&thread.Id)
-	//if err != nil {
-	//	_ = tranc.Rollback()
-	//	mesToClient := models.MessageStatus{
-	//		Message: "Can't find user by slug: " + thread.Author,
-	//	}
-	//	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
-	//	return
-	//}
 	err = tranc.Commit()
 
 	httpresponder.Respond(writer, http.StatusCreated, thread)
@@ -337,10 +306,6 @@ func (handler *ForumHandler) GetUsersForum(writer http.ResponseWriter, request *
 		users = append(users, user)
 	}
 
-	//mesToClient := models.MessageStatus{
-	//	Message: "Can't find user by nickname: " + slug,
-	//}
-	//httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
 	if len(users) == 0 {
 		err = tranc.Commit()
 		httpresponder.Respond(writer, http.StatusOK, []models.User{})
