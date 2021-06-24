@@ -189,7 +189,7 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 	}
 	row.Close()
 	err = tranc.Commit()
-	fmt.Println("AAAAAAAAAAA")
+	//fmt.Println("AAAAAAAAAAA")
 	if err != nil {
 		fmt.Println("AAAAAAAAAAA")
 		fmt.Println(row.Err())
