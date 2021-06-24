@@ -151,7 +151,7 @@ DROP INDEX if exists Users;
 DROP INDEX if exists threadSlug;
 DROP INDEX if exists threadCreated;
 DROP INDEX if exists threadForumHash;
--- DROP INDEX if exists threads;
+DROP INDEX if exists threads;
 DROP INDEX if exists postParent;
 DROP INDEX if exists postPath;
 DROP INDEX if exists voteIndex;
@@ -163,7 +163,7 @@ create INDEX  postPath on post ((path[1]), id);
 CREATE INDEX  threadSlug ON thread using hash (slug);
 CREATE INDEX  threadCreated ON thread (created);
 CREATE INDEX  threadForumHash ON thread using hash (forum);
--- CREATE INDEX  threads on thread (forum, slug, created,title, author, message, votes);
+CREATE INDEX  threads on thread (forum, slug, created,title, author, message, votes);
 CREATE INDEX voteIndex on votes (thread, nickname, voice);
 CREATE INDEX usersAll on allUsersForum (forum, nickname, fullname, about, email)
 
