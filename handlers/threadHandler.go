@@ -205,13 +205,13 @@ func (handler *ThreadHandler) CreatePostThread(writer http.ResponseWriter, reque
 }
 
 func (handler *ThreadHandler) GetThread(writer http.ResponseWriter, request *http.Request) {
-	data := mux.Vars(request)
-	slugOrId := data["slug_or_id"]
+	params := mux.Vars(request)
+	slugOrId := params["slug_or_id"]
 
-	idThread, err := strconv.Atoi(slugOrId)
+	isId, err := strconv.Atoi(slugOrId)
 
 	if err != nil {
-		idThread = 0
+		isId = 0
 	}
 
 	tranc, err := handler.database.Begin()
@@ -220,50 +220,25 @@ func (handler *ThreadHandler) GetThread(writer http.ResponseWriter, request *htt
 		panic(err)
 		return
 	}
-	var row *pgx.Rows
-	if idThread != 0 {
-		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`,
-			idThread)
+
+	var result models.Thread
+	if isId != 0 {
+		err = tranc.QueryRow( "SELECT id, title, author, forum, message, votes, coalesce(slug, '') as slug, created FROM thread WHERE id = $1", isId).Scan(
+			&result.Id, &result.Title, &result.Author,  &result.Forum, &result.Message, &result.Votes, &result.Slug, &result.Created)
 	} else {
-		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1`,
-			slugOrId)
+		err = tranc.QueryRow( "SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1", slugOrId).Scan(
+			&result.Id, &result.Title, &result.Author, &result.Forum, &result.Message, &result.Votes, &result.Slug, &result.Created)
 	}
 
 	if err != nil {
 		_ = tranc.Rollback()
-		panic(err)
+		mes := models.MessageStatus{}
+		mes.Message = "Can't find thread by slug or id: " + slugOrId
+		httpresponder.Respond(writer, http.StatusNotFound, mes)
 		return
-	}
-
-	defer row.Close()
-	for row.Next() {
-		thread := models.Thread{}
-		err = row.Scan(
-			&thread.Id,
-			&thread.Title,
-			&thread.Author,
-			&thread.Forum,
-			&thread.Message,
-			&thread.Votes,
-			&thread.Slug,
-			&thread.Created)
-
-		if err != nil {
-			_ = tranc.Rollback()
-			panic(err)
-			return
-		}
-		err = tranc.Commit()
-
-		httpresponder.Respond(writer, http.StatusOK, thread)
-		return
-	}
-
-	mesToClient := models.MessageStatus{
-		Message: "Can't find user by nickname: " + slugOrId,
 	}
 	_ = tranc.Rollback()
-	httpresponder.Respond(writer, http.StatusNotFound, mesToClient)
+	httpresponder.Respond(writer, http.StatusOK, result)
 }
 
 func (handler *ThreadHandler) UpdateThread(writer http.ResponseWriter, request *http.Request) {
