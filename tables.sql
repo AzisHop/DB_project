@@ -19,7 +19,7 @@ DROP INDEX if exists usersAll;
 DROP INDEX if exists nickname;
 DROP INDEX if exists postPath2;
 
-CREATE TABLE userForum
+CREATE UNLOGGED TABLE userForum
 (
     nickname CITEXT collate "POSIX" PRIMARY KEY NOT NULL,
     fullname TEXT                               NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE userForum
 CREATE INDEX  Users ON userforum (nickname, fullname, about, email);
 CREATE INDEX if not exists nickname on userforum using hash (nickname);
 
-CREATE TABLE forum
+CREATE UNLOGGED TABLE forum
 (
     id      BIGSERIAL PRIMARY KEY,
     title   TEXT          NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE forum
     FOREIGN KEY ("user") REFERENCES userForum (nickname)
 );
 
-CREATE TABLE thread
+CREATE UNLOGGED TABLE thread
 (
     id      BIGSERIAL PRIMARY KEY,
     title   TEXT                     NOT NULL,
