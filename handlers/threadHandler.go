@@ -386,11 +386,11 @@ func (handler *ThreadHandler) GetThreadPosts(writer http.ResponseWriter, request
 
 	var thread models.Thread
 	if idThread != 0 {
-		err = tranc.QueryRow(`SELECT id FROM thread WHERE id = $1`,
+		err = tranc.QueryRow(`proverkaThreadId`,
 			idThread).Scan(
 			&thread.Id)
 	} else {
-		err = tranc.QueryRow(`SELECT id FROM thread WHERE slug = $1`,
+		err = tranc.QueryRow(`proverkaThreadSlug`,
 			slugOrId).Scan(
 			&thread.Id)
 	}
@@ -621,5 +621,8 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 func (threadHandler *ThreadHandler) Prepare() {
 	threadHandler.database.Prepare(`selectThreadId`, `SELECT id, title, author, forum, message, votes, coalesce(slug, '') as slug, created FROM thread WHERE id = $1`)
 	threadHandler.database.Prepare(`selectThreadSlug`, `SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1`)
+
+	threadHandler.database.Prepare(`proverkaThreadId`, `SELECT id FROM thread WHERE id = $1`)
+	threadHandler.database.Prepare(`proverkaThreadSlug`, `SELECT id FROM thread WHERE slug = $1`)
 
 }

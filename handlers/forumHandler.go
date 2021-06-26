@@ -252,7 +252,7 @@ func (handler *ForumHandler) GetUsersForum(writer http.ResponseWriter, request *
 		return
 	}
 
-	err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`,
+	err = tranc.QueryRow(`proverkaForum`,
 		forum.Slug).Scan(&forum.Slug)
 
 	if err != nil {
@@ -266,16 +266,16 @@ func (handler *ForumHandler) GetUsersForum(writer http.ResponseWriter, request *
 
 	var row *pgx.Rows
 	if since != "" && desc {
-		row, err = tranc.Query(`SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 AND nickname < $2 ORDER BY nickname DESC LIMIT $3`,
+		row, err = tranc.Query(`getUsersDescSince`,
 			forum.Slug, since, limit)
 	} else if desc {
-		row, err = tranc.Query(`SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 ORDER BY nickname DESC LIMIT $2`,
+		row, err = tranc.Query(`getUsersDesc`,
 			forum.Slug, limit)
 	} else if since != "" {
-		row, err = tranc.Query(`SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 AND nickname > $2 ORDER BY nickname LIMIT $3`,
+		row, err = tranc.Query(`getUsersSince`,
 			forum.Slug, since, limit)
 	} else {
-		row, err = tranc.Query(`SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 ORDER BY nickname LIMIT $2`,
+		row, err = tranc.Query(`getUsers`,
 			forum.Slug, limit)
 	}
 
@@ -424,5 +424,11 @@ func (handler *ForumHandler) Prepare() {
 		created FROM thread tr WHERE forum = $1 AND created >= $2 ORDER BY created LIMIT $3`)
 	handler.database.Prepare(`getThreads`, `SELECT id, title, author, forum, message, votes, coalesce(slug,''),
 		created FROM thread tr WHERE forum = $1 ORDER BY created LIMIT $2`)
+
+	handler.database.Prepare(`getUsersDescSince`, `SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 AND nickname < $2 ORDER BY nickname DESC LIMIT $3`)
+	handler.database.Prepare(`getUsersDesc`, `SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 ORDER BY nickname DESC LIMIT $2`)
+	handler.database.Prepare(`getUsersSince`, `SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 AND nickname > $2 ORDER BY nickname LIMIT $3`)
+	handler.database.Prepare(`getUsers`, `SELECT nickname, fullname, about, email FROM allUsersForum  WHERE forum = $1 ORDER BY nickname LIMIT $2`)
+
 
 }
