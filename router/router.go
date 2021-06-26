@@ -23,6 +23,11 @@ func Routing() *mux.Router {
 	postHandler := handlers.CreatePostHandler(postgres.GetPs())
 	serviceHandler := handlers.CreateServiceHandler(postgres.GetPs())
 
+	userHandler.Prepare()
+	forumHandler.Prepare()
+	threadHandler.Prepare()
+	postHandler.Prepare()
+
 
 
 	user := router.PathPrefix("/api/user").Subrouter()

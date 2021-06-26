@@ -150,7 +150,7 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 
 	var info models.AllInfo
 
-	err = tranc.QueryRow(`SELECT id, parent, author, message, isedited, forum, thread, created FROM post WHERE id = $1`,
+	err = tranc.QueryRow(`selectPost`,
 		&post.Id).Scan(
 		&post.Id,
 		&post.Parent,
@@ -176,7 +176,7 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 	for _, item := range related {
 		if item == "user" {
 			var user models.User
-			err = tranc.QueryRow(`SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1`,
+			err = tranc.QueryRow(`selectUser`,
 				&post.Author).Scan(
 				&user.Nickname,
 				&user.Fullname,
@@ -197,7 +197,7 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 		}
 		if item == "forum" {
 			var forum models.Forum
-			err = tranc.QueryRow(`SELECT title, "user", coalesce(slug, ''), posts, threads FROM forum WHERE slug = $1`,
+			err = tranc.QueryRow(`selectForum`,
 				&post.Forum).Scan(
 				&forum.Title,
 				&forum.User,
@@ -219,7 +219,7 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 		}
 		if item == "thread" {
 			var thread models.Thread
-			err = tranc.QueryRow(`SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`,
+			err = tranc.QueryRow(`selectThread`,
 				&post.Thread).Scan(
 				&thread.Id,
 				&thread.Title,
@@ -252,4 +252,11 @@ func (handler *PostHandler) GetPost(writer http.ResponseWriter, request *http.Re
 
 	httpresponder.Respond(writer, http.StatusOK, info)
 
+}
+
+func (handler *PostHandler) Prepare() {
+	handler.database.Prepare(`selectPost`, `SELECT id, parent, author, message, isedited, forum, thread, created FROM post WHERE id = $1`)
+	handler.database.Prepare(`selectUser`, `SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1`)
+	handler.database.Prepare(`selectForum`, `SELECT title, "user", coalesce(slug, ''), posts, threads FROM forum WHERE slug = $1`)
+	handler.database.Prepare(`selectThread`, `SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE id = $1`)
 }

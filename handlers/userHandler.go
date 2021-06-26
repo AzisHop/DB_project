@@ -105,7 +105,7 @@ func (handler *UserHandler) GetUser(writer http.ResponseWriter, request *http.Re
 
 	user := models.User{}
 
-	row, _ := handler.database.Query("SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1",
+	row, _ := handler.database.Query("selectUser",
 		nickname)
 
 	if !row.Next() {
@@ -190,4 +190,8 @@ func (handler *UserHandler) UpdateUser(writer http.ResponseWriter, request *http
 	}
 
 	httpresponder.Respond(writer, http.StatusOK, user)
+}
+
+func (handler *UserHandler) Prepare() {
+	handler.database.Prepare(`selectUser`, `SELECT nickname, fullname, about, email FROM userForum WHERE nickname = $1`)
 }

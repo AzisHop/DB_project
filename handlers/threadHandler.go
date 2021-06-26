@@ -223,10 +223,10 @@ func (handler *ThreadHandler) GetThread(writer http.ResponseWriter, request *htt
 
 	var result models.Thread
 	if isId != 0 {
-		err = tranc.QueryRow( "SELECT id, title, author, forum, message, votes, coalesce(slug, '') as slug, created FROM thread WHERE id = $1", isId).Scan(
+		err = tranc.QueryRow( "selectThreadId", isId).Scan(
 			&result.Id, &result.Title, &result.Author,  &result.Forum, &result.Message, &result.Votes, &result.Slug, &result.Created)
 	} else {
-		err = tranc.QueryRow( "SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1", slugOrId).Scan(
+		err = tranc.QueryRow( "selectThreadSlug", slugOrId).Scan(
 			&result.Id, &result.Title, &result.Author, &result.Forum, &result.Message, &result.Votes, &result.Slug, &result.Created)
 	}
 
@@ -615,5 +615,11 @@ func (handler *ThreadHandler) VoiceThread(writer http.ResponseWriter, request *h
 	}
 
 	httpresponder.Respond(writer, http.StatusOK, thread)
+
+}
+
+func (threadHandler *ThreadHandler) Prepare() {
+	threadHandler.database.Prepare(`selectThreadId`, `SELECT id, title, author, forum, message, votes, coalesce(slug, '') as slug, created FROM thread WHERE id = $1`)
+	threadHandler.database.Prepare(`selectThreadSlug`, `SELECT id, title, author, forum, message, votes, coalesce(slug, ''), created FROM thread WHERE slug = $1`)
 
 }

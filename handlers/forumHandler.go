@@ -98,7 +98,7 @@ func (handler *ForumHandler) GetForum(writer http.ResponseWriter, request *http.
 
 	forum := models.Forum{Slug: slug}
 
-	row, err := handler.database.Query(`SELECT title, "user", slug, posts, threads FROM forum WHERE slug = $1`,
+	row, err := handler.database.Query(`selectForum`,
 		forum.Slug)
 
 	if err != nil {
@@ -344,7 +344,7 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	err = tranc.QueryRow(`SELECT slug FROM forum WHERE slug = $1`,
+	err = tranc.QueryRow(`proverkaForum`,
 		forum.Slug).Scan(&forum.Slug)
 
 	if err != nil {
@@ -357,20 +357,16 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 	}
 	var row *pgx.Rows
 	if since != "" && desc {
-		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
-		created FROM thread tr WHERE forum = $1 AND created <= $2 ORDER BY created DESC LIMIT $3`,
+		row, err = tranc.Query(`getThreadsDescSince`,
 			forum.Slug, since, limit)
 	} else if desc {
-		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
-		created FROM thread tr WHERE forum = $1 ORDER BY created DESC LIMIT $2`,
+		row, err = tranc.Query(`getThreadsDesc`,
 			forum.Slug, limit)
 	} else if since != "" {
-		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
-		created FROM thread tr WHERE forum = $1 AND created >= $2 ORDER BY created LIMIT $3`,
+		row, err = tranc.Query(`getThreadsSince`,
 			forum.Slug, since, limit)
 	} else {
-		row, err = tranc.Query(`SELECT id, title, author, forum, message, votes, coalesce(slug,''),
-		created FROM thread tr WHERE forum = $1 ORDER BY created LIMIT $2`,
+		row, err = tranc.Query(`getThreads`,
 			forum.Slug, limit)
 	}
 
@@ -415,4 +411,18 @@ func (handler *ForumHandler) GetThreads(writer http.ResponseWriter, request *htt
 	}
 
 	httpresponder.Respond(writer, http.StatusOK, threads)
+}
+
+func (handler *ForumHandler) Prepare() {
+	handler.database.Prepare(`selectForum`, `SELECT title, "user", slug, posts, threads FROM forum WHERE slug = $1`)
+	handler.database.Prepare(`proverkaForum`, `SELECT slug FROM forum WHERE slug = $1`)
+	handler.database.Prepare(`getThreadsDescSince`, `SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 AND created <= $2 ORDER BY created DESC LIMIT $3`)
+	handler.database.Prepare(`getThreadsDesc`, `SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 ORDER BY created DESC LIMIT $2`)
+	handler.database.Prepare(`getThreadsSince`, `SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 AND created >= $2 ORDER BY created LIMIT $3`)
+	handler.database.Prepare(`getThreads`, `SELECT id, title, author, forum, message, votes, coalesce(slug,''),
+		created FROM thread tr WHERE forum = $1 ORDER BY created LIMIT $2`)
+
 }
